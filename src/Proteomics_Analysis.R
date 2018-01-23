@@ -2,6 +2,8 @@ library(rstudioapi)
 library(dplyr)
 library(VennDiagram)
 library(colorspace)
+library(ggplot2)
+library(reshape)
 
 #Gets project path based on location of source script
 project_path <- dirname(dirname(rstudioapi::getSourceEditorContext()$path))
@@ -53,6 +55,10 @@ for (kk in length(Protein_AR_Datasets)){
 Common_Proteins <- tmp
 rm(tmp,kk,i)
 
+#Plotting venn diagram of the number of proteins found in each batch and common protein between batches
+grid.newpage()
+venn_protein = draw.triple.venn(area1 = 4887, area2 = 5593, area3 = 6618, n12= 4109, n23 = 4646, n13 = 4018, n123 = 3782, category = c('Set 1', 'Set 2', 'Set 3'), fill =  c("#E495A5" ,"#ABB065" ,"#39BEB1" ))
+
 #Filtering protein abundances for only commonly found proteins across all batches
 i=1
 num_datasets = 1:length(Protein_AR_Datasets)
@@ -71,12 +77,7 @@ for(kk in length(Protein_AR_Datasets)){
 rm(tmp,tmp2,tmp3,kk,i,jj)
 
 #Transposing data such that protein id and subject information can be found in individual columns, making it easier to commbine datasets later on
-
-for (kk in length(Protein_AR_Datasets)){
-  if (kk==1){cat("One")}
-  else if(kk==2){cat("Two")}
-  else if(kk==3){cat("THREE")}
-  
+for (kk in 1:length(Protein_AR_Datasets)){
   tmp<-get(Protein_AR_Datasets[kk])
   Seq_Col<-tmp[,c(1,2)]
   assign((paste("Protein",kk,"_AR_Transpose",sep="")),as.data.frame(t(tmp[,-c(1,2)])))
@@ -89,7 +90,34 @@ for (kk in length(Protein_AR_Datasets)){
   tmp5<-get(paste("Protein",kk,"_AR_Transpose",sep=""))
   colnames(tmp5)[1]<- 'Sample_ID'
   assign((paste("Protein",kk,"_AR_Transpose",sep="")),tmp5)
-  
 } 
-rm(tmp,tmp2,tmp3,tmp4,tmp5)
+rm(tmp,tmp2,tmp3,tmp4,tmp5,kk)
+
+#Plotting distributions of abundance ratios for each batch
+Protein_AR_Transpose_Datasets<-ls(all.names=TRUE,pattern="^Protein\\d_AR_Transpose$")
+for (kk in 1:length(Protein_AR_Transpose_Datasets)){
+  tmp<-get(paste("Protein",kk,"_AR_Transpose",sep=""))
+  assign(paste("Melt_Protein",kk,"_AR_Transpose",sep=""),melt(tmp))
+  tmp2<-get(paste("Melt_Protein",kk,"_AR_Transpose",sep=""))
+  tmp3<-ggplot(data = tmp2, aes(x = value, col=variable)) + geom_density(na.rm=T)  + theme(legend.position = "none")
+  assign(paste("Protein",kk,"_NormPlot",sep=""),tmp3)
+}
+rm(tmp,tmp2,tmp3)
+
+#Combining all three datasets to plot overall distribution
+Combined_Protein_Transpose<-bind_rows(lapply(as.list(Protein_AR_Transpose_Datasets),get))
+
+#Removing proteins with any NA(missing) values
+Combined_Protein_Transpose <- Combined_Protein_Transpose[sapply(Combined_Protein_Transpose, function(x) !any(is.na(x)))] 
+Combined_Protein_Transpose <- Combined_Protein_Transpose[,-c(1:2, 4:10)]
+#Plotting distribution of abundance ratios for combined data
+Melt_Protein_Transpose <- melt(Combined_Protein_Transpose)
+Proteins_NormPlot <- ggplot(data = Melt_Protein_Transpose, aes(x=value, col=variable)) + geom_density(na.rm=T)  + theme(legend.position = "none")
+
+#Boxplot for proteins
+grid.newpage(recording = TRUE)
+Proteins_BoxPlot = ggplot(Melt_Protein_Transpose, aes(x='variable', y='value')) + geom_boxplot(aes(x= 'variable', y = 'value'), na.rm=T) +theme(legend.position = "none")
+
+
+
 
