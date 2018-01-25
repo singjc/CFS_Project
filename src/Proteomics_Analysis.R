@@ -4,43 +4,23 @@ library(VennDiagram)
 library(colorspace)
 library(ggplot2)
 library(reshape)
+source('~/Users/justinsing/Documents/Hannes_Rost/CFS/CFS_Project/src/lib/Patient_Info_Extraction.R ')
+
+
 
 #Gets project path based on location of source script
 project_path <- dirname(dirname(rstudioapi::getSourceEditorContext()$path))
+lib_path<-paste(project_path,'/src/lib',sep="")
+lapply(list.files(pattern = "[.]R$", full.names=TRUE,recursive = FALSE,path=lib_path), source)
 #Gets path to where data is stored
 data_path <- paste(project_path,'/Data/Proteomics_Dataset',sep="")
 #Gets paths of all the Protein data text files
 files <- list.files(data_path, pattern="*Proteins.txt", full.names=T, recursive=FALSE)
-i = 1
-for (file in files ){
-  #Extract only useful and relevant data from protein data file
-  assign(paste("Protein",i,sep=""),(read.table(file))[,-c(1,2,8:49, 89:94)])
-  #Store current protein data into a static temporary variable
-  tmp <- get(paste("Protein",i,sep=""))
-  #Rename column headers baser on names in the first row
-  colnames(tmp) <-as.character(unlist(tmp[1, ])) 
-  tmp <- tmp[-1, ]
-  assign((paste("Protein",i,sep="")),tmp)
-  #Extract only Abundance Ratios
-  assign(paste("Protein",i,"_AR",sep=""),get(paste("Protein",i,sep=""))[c(1,5,16:24)])
-  #Store current protein dataset into a static temporary variable
-  tmp <- get(paste("Protein",i,"_AR",sep=""))
-  #Convert Unique Sequence ID to character vectors
-  tmp[["Unique Sequence ID"]] <- as.character(tmp[["Unique Sequence ID"]])
-  #Re-assign converted tmp protein data to current Protein_AR variable
-  assign((paste("Protein",i,"_AR",sep="")),tmp)
-  #Store current protein dataset into a static temporary variable
-  tmp <- get(paste("Protein",i,"_AR",sep=""))
-  #Convert Sequence to character vectors
-  tmp[["Sequence"]] <- as.character(tmp[["Sequence"]])
-  #Re-assign converted tmp protein data to current Protein_AR variable
-  assign((paste("Protein",i,"_AR",sep="")),tmp)
- i=i+1
- #Removing tmp variable from environment
- rm(tmp)
-}
-#Removing i variable from environment
-rm(i)
+#Initiate path for saving Results/Graphs
+graph_path<-paste(project_path,'/Results/Graphs/',sep="")
+
+#Extract Protein Information
+Protein_Dataset_Info_Extraction(files)
 
 #Get Protein abundance ratio datasets for each batch
 Protein_AR_Datasets <- ls(all.names=TRUE,pattern="*\\d_AR$")
@@ -79,19 +59,30 @@ rm(tmp,tmp2,tmp3,kk,i,jj)
 #Transposing data such that protein id and subject information can be found in individual columns, making it easier to commbine datasets later on
 for (kk in 1:length(Protein_AR_Datasets)){
   tmp<-get(Protein_AR_Datasets[kk])
+  #Obtain Sequence column information
   Seq_Col<-tmp[,c(1,2)]
+  #Obtain Abundance Ration Sample IDS
+  AR_ID<-colnames(tmp[-c(1,2)])
   assign((paste("Protein",kk,"_AR_Transpose",sep="")),as.data.frame(t(tmp[,-c(1,2)])))
   tmp2<-get(paste("Protein",kk,"_AR_Transpose",sep=""))
-  colnames(tmp2)<- Seq_Col[,1]
+  #Convert dataframe to a matrix, to convert numbers to numeric data
+  tmp2_matrix<-as.matrix(tmp2)
+  row.names(tmp2_matrix)<-NULL
+  tmp2_matrix<-apply(tmp2_matrix,2,as.numeric)
+  tmp2<-as.data.frame(tmp2_matrix)
+  row.names(tmp2)<-AR_ID
+  
+  # colnames(tmp2)<- Seq_Col[,1]
+  # assign((paste("Protein",kk,"_AR_Transpose",sep="")),tmp2)
+  # tmp3<-colnames(get(paste("Protein",kk,"_AR",sep="")))
+  # tmp4<-cbind(as.data.frame(tmp3[-c(1:2)]),tmp2)
+  # assign((paste("Protein",kk,"_AR_Transpose",sep="")),tmp4)
+  # tmp5<-get(paste("Protein",kk,"_AR_Transpose",sep=""))
+  
+  colnames(tmp2)[1]<- 'Sample_ID'
   assign((paste("Protein",kk,"_AR_Transpose",sep="")),tmp2)
-  tmp3<-colnames(get(paste("Protein",kk,"_AR",sep="")))
-  tmp4<-cbind(as.data.frame(tmp3[-c(1:2)]),tmp2)
-  assign((paste("Protein",kk,"_AR_Transpose",sep="")),tmp4)
-  tmp5<-get(paste("Protein",kk,"_AR_Transpose",sep=""))
-  colnames(tmp5)[1]<- 'Sample_ID'
-  assign((paste("Protein",kk,"_AR_Transpose",sep="")),tmp5)
 } 
-rm(tmp,tmp2,tmp3,tmp4,tmp5,kk)
+rm(tmp,tmp2,kk)
 
 #Plotting distributions of abundance ratios for each batch
 Protein_AR_Transpose_Datasets<-ls(all.names=TRUE,pattern="^Protein\\d_AR_Transpose$")
@@ -99,7 +90,11 @@ for (kk in 1:length(Protein_AR_Transpose_Datasets)){
   tmp<-get(paste("Protein",kk,"_AR_Transpose",sep=""))
   assign(paste("Melt_Protein",kk,"_AR_Transpose",sep=""),melt(tmp))
   tmp2<-get(paste("Melt_Protein",kk,"_AR_Transpose",sep=""))
-  tmp3<-ggplot(data = tmp2, aes(x = value, col=variable)) + geom_density(na.rm=T)  + theme(legend.position = "none")
+  graph_path_name<-paste(graph_path,"Normal_Distribution_Plot_of_Protein_Dataset_",kk,".tiff",sep="")
+  graph_name = paste("Normal Distribution Plot of Protein Dataset ",kk,sep="")
+  tmp3<-ggplot(data = tmp2, aes(x = value, col=variable)) + geom_density(na.rm=T)  + theme(legend.position = "none")+ggtitle(graph_name)
+  tmp3
+  ggsave(graph_path_name,device='tiff')
   assign(paste("Protein",kk,"_NormPlot",sep=""),tmp3)
 }
 rm(tmp,tmp2,tmp3)
@@ -108,16 +103,30 @@ rm(tmp,tmp2,tmp3)
 Combined_Protein_Transpose<-bind_rows(lapply(as.list(Protein_AR_Transpose_Datasets),get))
 
 #Removing proteins with any NA(missing) values
-Combined_Protein_Transpose <- Combined_Protein_Transpose[sapply(Combined_Protein_Transpose, function(x) !any(is.na(x)))] 
+Combined_Protein_Transpose <- Combined_Protein_Transpose[sapply(Combined_Protein_Transpose, function(x) !any(is.na(x)))]
+# variable<- Combined_Protein_Transpose[,c(1)]
+# value<-colnames(Combined_Protein_Transpose)[2:length(Combined_Protein_Transpose)]
+#Deletes columns 1 and 2
 Combined_Protein_Transpose <- Combined_Protein_Transpose[,-c(1:2, 4:10)]
 #Plotting distribution of abundance ratios for combined data
 Melt_Protein_Transpose <- melt(Combined_Protein_Transpose)
-Proteins_NormPlot <- ggplot(data = Melt_Protein_Transpose, aes(x=value, col=variable)) + geom_density(na.rm=T)  + theme(legend.position = "none")
+graph_path_name<-paste(graph_path,"Normal_Distribution_Plot_of_Combined_Protein_Dataset_",kk,".tiff",sep="")
+graph_name = paste("Normal Distribution Plot of Combined Protein Dataset",sep="")
+Proteins_NormPlot <- ggplot(data = Melt_Protein_Transpose, aes(x=value, col=variable)) + geom_density(na.rm=TRUE)  + theme(legend.position = "none")+ggtitle(graph_name)
+ggsave(graph_path_name,device="tiff")
 
 #Boxplot for proteins
-grid.newpage(recording = TRUE)
-Proteins_BoxPlot = ggplot(Melt_Protein_Transpose, aes(x='variable', y='value')) + geom_boxplot(aes(x= 'variable', y = 'value'), na.rm=T) +theme(legend.position = "none")
+graph_path_name<-paste(graph_path,"BoxPlot_of_Combined_Protein_Dataset_",kk,".tiff",sep="")
+graph_name = paste("BoxPlot of Combined Protein Dataset",sep="")
+Proteins_BoxPlot = ggplot(data=Melt_Protein_Transpose, aes(x=variable, y=value)) + geom_boxplot(aes(x= variable, y = value), na.rm=TRUE) +theme(legend.position = "none")+ggtitle(graph_name)
+ggsave(graph_path_name,device='tiff')
 
+graph_path_name<-paste(graph_path,"BoxPlot_function_of_Combined_Protein_Dataset_",kk,".tiff",sep="")
+tiff(file=graph_path_name)
+Proteins_using_Boxplot_Func<- boxplot(Combined_Protein_Transpose,main="Boxplot of Combined Protein Dataset using boxplot func",xlab="Protein",ylab="Normalized Abundance Ratio")
+dev.off()
 
-
-
+#Import Patient Info
+#Gets paths of all the Protein data text files
+Patient_files <- list.files(data_path, pattern="*Sample_List_Information.csv", full.names=T, recursive=FALSE)
+Patient_Info_Extraction(Patient_files)
