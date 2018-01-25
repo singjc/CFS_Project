@@ -1,8 +1,9 @@
 Protein_Dataset_Info_Extraction <- function(files) {
   i = 1
+  # Protein_Set_List<-vector("list",length(files))
   for (file in files ){
     #Extract only useful and relevant data from protein data file
-    assign(paste("Protein",i,sep=""),(read.table(file))[,-c(1,2,8:49, 89:94)])
+    assign(paste("Protein",i,sep=""),(read.table(file))[,-c(1,2,8:49, 89:94)],envir=.GlobalEnv)
     #Store current protein data into a static temporary variable
     tmp <- get(paste("Protein",i,sep=""))
     #Rename column headers baser on names in the first row
@@ -22,16 +23,11 @@ Protein_Dataset_Info_Extraction <- function(files) {
     #Convert Sequence to character vectors
     tmp[["Sequence"]] <- as.character(tmp[["Sequence"]])
     #Re-assign converted tmp protein data to current Protein_AR variable
-    assign((paste("Protein",i,"_AR",sep="")),tmp)
+    assign((paste("Protein",i,"_AR",sep="")),tmp,envir=.GlobalEnv)
     i=i+1
     #Removing tmp variable from environment
     rm(tmp)
   }
   #Removing i variable from environment
   rm(i)
-  
-  Protein_Datasets <- ls(all.names=TRUE,pattern="^Protein\\d$")
-  
-  #Working on Returing variables from function
-  return(sapply(Protein_Datasets,get))
 }

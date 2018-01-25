@@ -4,9 +4,9 @@ library(VennDiagram)
 library(colorspace)
 library(ggplot2)
 library(reshape)
+library(rlist)
+
 source('~/Users/justinsing/Documents/Hannes_Rost/CFS/CFS_Project/src/lib/Patient_Info_Extraction.R ')
-
-
 
 #Gets project path based on location of source script
 project_path <- dirname(dirname(rstudioapi::getSourceEditorContext()$path))
@@ -19,8 +19,10 @@ files <- list.files(data_path, pattern="*Proteins.txt", full.names=T, recursive=
 #Initiate path for saving Results/Graphs
 graph_path<-paste(project_path,'/Results/Graphs/',sep="")
 
+# trace(Protein_Dataset_Info_Extraction, exit = function().last_env <<- parent.frame())
 #Extract Protein Information
-Protein_Dataset_Info_Extraction(files)
+Dataset_Extraction<-Protein_Dataset_Info_Extraction(files)
+# get(Results[4],.last_env)
 
 #Get Protein abundance ratio datasets for each batch
 Protein_AR_Datasets <- ls(all.names=TRUE,pattern="*\\d_AR$")
@@ -82,7 +84,7 @@ for (kk in 1:length(Protein_AR_Datasets)){
   colnames(tmp2)[1]<- 'Sample_ID'
   assign((paste("Protein",kk,"_AR_Transpose",sep="")),tmp2)
 } 
-rm(tmp,tmp2,kk)
+rm(tmp,tmp2,tmp2_matrix,kk)
 
 #Plotting distributions of abundance ratios for each batch
 Protein_AR_Transpose_Datasets<-ls(all.names=TRUE,pattern="^Protein\\d_AR_Transpose$")
