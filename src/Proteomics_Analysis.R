@@ -10,6 +10,7 @@ library(venn)
 library(rafalib)
 library(RColorBrewer)
 library(colorspace)
+library(biganalytics)
 
 # source('~/Users/justinsing/Documents/Hannes_Rost/CFS/CFS_Project/src/lib/Patient_Info_Extraction.R ')
 # paste(Protein_AR_Datasets,'/src/lib')
@@ -134,26 +135,30 @@ Combined_Data_with_Patient_Info<-bind_rows(lapply(as.list(Protein_Datasets),get)
 Filtered_Combined_Data <- Combined_Data_with_Patient_Info[sapply(Combined_Data_with_Patient_Info, function(x) !any(is.na(x)))] 
 
 #Normalising data (median centring)
-median_proteins = aggregate(Filtered_Combined_Data[,-c(1:10)], by = list(Filtered_Combined_Data[,2]), FUN = median, na.rm = F)
+median_proteins = aggregate(Filtered_Combined_Data[,-c(1:10)], by = list(Filtered_Combined_Data[,2]), FUN = median, na.rm = FALSE)
 Normalized_Protein_Data = Filtered_Combined_Data
-Num_Unique_Batches<-length(unique(Filtered_Combined_Data$Batch))
+Num_Unique_Batches_idc<-which(!duplicated(Filtered_Combined_Data$Batch))
 Num_Unique_TMT_Labels<-length(unique(Filtered_Combined_Data$TMT.Label))
 k<-Num_Unique_TMT_Labels
-for (i in 1:(Num_Unique_Batches*Num_Unique_TMT_Labels)){
-
-Normalized_Protein_Data[i:k,-c(1:10)] = Normalized_Protein_Data[i:k,-c(1:10)] - median_proteins[,-1]
-k=k+1
+for (i in Num_Unique_Batches_idc){
+Normalized_Protein_Data[i:k,-c(1:10)] = Filtered_Combined_Data[i:k,-c(1:10)] - median_proteins[,-1]
+k=k+Num_Unique_TMT_Labels
 }
 rm(i,k)
 
+graph_path_name<-paste(graph_path,"BoxPlot_function_of_Normalized_Combined_Protein_Dataset.tiff",sep="")
+tiff(file=graph_path_name)
+x<-Normalized_Protein_Data[,-c(1:10)]
+z<-boxplot(x,main="Boxplot of Normalized Combined Protein Dataset using boxplot func",xlab="Protein",ylab="Normalized Abundance Ratio")
+dev.off()
 
 # Hierarchial Clustering
 tmp = Normalized_Protein_Data
-
+tmp2<- tmp[sapply(tmp, function(x) !any(is.na(x)))] 
 #Combining patient id with different groups so that patient id can be seen in dendrogram
-tmp2<-apply(tmp[,11:ncol(tmp)],2,as.numeric)
-tmp3<- tmp2[sapply(tmp2, function(x) !any(is.na(x)))] 
-CFS_cluster = hclust(dist(tmp3))
+tmp3<-apply(tmp2[,11:ncol(tmp2)],2,as.numeric)
+
+CFS_cluster = hclust(dist(tmp[,12:ncol(tmp)]))
 tmp$fam_id <- paste(Normalized_Protein_Data$sample_id, Normalized_Protein_Data$Family_group, sep="|")
 tmp$CFS_id <- paste(Normalized_Protein_Data$sample_id, Normalized_Protein_Data$CFS, sep="|")
 tmp$age_id <- paste(Normalized_Protein_Data$sample_id, Normalized_Protein_Data$Age, sep="|")
@@ -165,17 +170,17 @@ tmp$channel_id <- paste(Normalized_Protein_Data$sample_id, Normalized_Protein_Da
 
 #Color coding dendrogram by different groups
 eds_col = c("#86B875", "#E495A5", "#7DB0DD")
-CFS_cluster_id = myplclust(CFS_cluster, labels = as.character(tmp$sample_id))
-CFS_cluster_fam = myplclust(CFS_cluster, labels = as.character(tmp$fam_id), lab.col= rainbow_hcl(5)[as.fumeric(as.character(tmp$Family_group))])
-CFS_cluster_CFS = myplclust(CFS_cluster, labels = as.character(tmp$CFS_id), lab.col= rainbow_hcl(3)[as.fumeric(as.character(tmp$CFS))])
-CFS_cluster_age = myplclust(CFS_cluster, labels = as.character(tmp$age_id), lab.col= rainbow_hcl(9)[as.fumeric(as.character(tmp$Age_group))])
-CFS_cluster_gender = myplclust(CFS_cluster, labels = as.character(tmp$gender_id), lab.col= rainbow_hcl(2)[as.fumeric(as.character(tmp$Gender))])
-CFS_cluster_EDS = myplclust(CFS_cluster, labels = as.character(tmp$EDS_id), lab.col= eds_col[as.fumeric(as.character(tmp$EDS))])
-CFS_cluster_ds = myplclust(CFS_cluster, labels = as.character(tmp$ds_id), lab.col= rainbow_hcl(8)[as.fumeric(as.character(tmp$disease.status))])
-CFS_cluster_set = myplclust(CFS_cluster, labels = as.character(tmp$set_id), lab.col= rainbow_hcl(3)[as.fumeric(as.character(tmp$set))])
-CFS_cluster_channel = myplclust(CFS_cluster, labels = as.character(tmp$channel_id), lab.col= rainbow_hcl(9)[as.fumeric(as.character(tmp$TMT.Label))])
-
-
+CFS_cluster_id = myplclust(CFS_cluster, labels = as.character(tmp$Sample.ID))
+# CFS_cluster_fam = myplclust(CFS_cluster, labels = as.character(tmp$fam_id), lab.col= rainbow_hcl(5)[as.fumeric(as.character(tmp$Family_group))])
+# CFS_cluster_CFS = myplclust(CFS_cluster, labels = as.character(tmp$CFS_id), lab.col= rainbow_hcl(3)[as.fumeric(as.character(tmp$CFS))])
+# CFS_cluster_age = myplclust(CFS_cluster, labels = as.character(tmp$age_id), lab.col= rainbow_hcl(9)[as.fumeric(as.character(tmp$Age_group))])
+# CFS_cluster_gender = myplclust(CFS_cluster, labels = as.character(tmp$gender_id), lab.col= rainbow_hcl(2)[as.fumeric(as.character(tmp$Gender))])
+# CFS_cluster_EDS = myplclust(CFS_cluster, labels = as.character(tmp$EDS_id), lab.col= eds_col[as.fumeric(as.character(tmp$EDS))])
+# CFS_cluster_ds = myplclust(CFS_cluster, labels = as.character(tmp$ds_id), lab.col= rainbow_hcl(8)[as.fumeric(as.character(tmp$disease.status))])
+# CFS_cluster_set = myplclust(CFS_cluster, labels = as.character(tmp$set_id), lab.col= rainbow_hcl(3)[as.fumeric(as.character(tmp$set))])
+# CFS_cluster_channel = myplclust(CFS_cluster, labels = as.character(tmp$channel_id), lab.col= rainbow_hcl(9)[as.fumeric(as.character(tmp$TMT.Label))])
+# 
+# 
 
 
 
