@@ -63,14 +63,19 @@ for (kk in 1:length(Protein_AR_Transpose_Datasets)){
   graph_path_name<-paste(graph_path,"Normal_Distribution_Plot_of_Protein_Dataset_",kk,".tiff",sep="")
   graph_name = paste("Normal Distribution Plot of Protein Dataset ",kk,sep="")
   tmp3<-ggplot(data = tmp2, aes(x = value, col=variable)) + geom_density(na.rm=T)  + theme(legend.position = "none")+ggtitle(graph_name)
-  tmp3
   ggsave(graph_path_name,device='tiff')
+  graph_name = paste("Histogram of Protein Dataset ",kk,sep="")
+  ggplot(data=tmp2,aes(x=value))+geom_histogram(bins=1000,na.rm = TRUE) + labs(title=graph_name) + labs(x="Protein Abundance Ratio", y="Frequency")
+  ggave(graph_name,device='tiff')
   assign(paste("Protein",kk,"_NormPlot",sep=""),tmp3)
 }
 rm(tmp,tmp2,tmp3)
 
 #Combining all three datasets to plot overall distribution
 Combined_Protein_Transpose<-bind_rows(lapply(as.list(Protein_AR_Transpose_Datasets),get))
+graph_name = paste("Histogram of Combined Protein Dataset",sep="")
+ggplot(data=melt(Combined_Protein_Transpose[,-c(1)]),aes(x=value))+geom_histogram(bins=1000,na.rm = TRUE) + labs(title=graph_name) + labs(x="Protein Abundance Ratio", y="Frequency")
+ggave(graph_name,device='tiff')
 
 #Removing proteins with any NA(missing) values
 Combined_Protein_Transpose <- Combined_Protein_Transpose[sapply(Combined_Protein_Transpose, function(x) !any(is.na(x)))]
@@ -80,7 +85,7 @@ Combined_Protein_Transpose <- Combined_Protein_Transpose[sapply(Combined_Protein
 Combined_Protein_Transpose <- Combined_Protein_Transpose[,-c(1:2, 4:10)]
 #Plotting distribution of abundance ratios for combined data
 Melt_Protein_Transpose <- melt(Combined_Protein_Transpose)
-graph_path_name<-paste(graph_path,"Normal_Distribution_Plot_of_Combined_Protein_Dataset_",kk,".tiff",sep="")
+graph_path_name<-paste(graph_path,"Normal_Distribution_Plot_of_Combined_Protein_Dataset",".tiff",sep="")
 graph_name = paste("Normal Distribution Plot of Combined Protein Dataset",sep="")
 Proteins_NormPlot <- ggplot(data = Melt_Protein_Transpose, aes(x=value, col=variable)) + geom_density(na.rm=TRUE)  + theme(legend.position = "none")+ggtitle(graph_name)
 ggsave(graph_path_name,device="tiff")
@@ -130,11 +135,11 @@ for (dataset in 1:length(List_of_Transposed_Data)){
 rm(tmp2)
 
 Protein_Datasets<-ls(all.names=TRUE,pattern="^Protein_Dataset\\d$")
-#Combining all three datasets to plot overall distribution
+#Combining all datasets to plot overall distribution
 Combined_Data_with_Patient_Info<-bind_rows(lapply(as.list(Protein_Datasets),get))
 Filtered_Combined_Data <- Combined_Data_with_Patient_Info[sapply(Combined_Data_with_Patient_Info, function(x) !any(is.na(x)))] 
 
-#Normalising data (median centring)
+# ~~~~~~~~~~~~~~~~~~ Normalising data (median centring)
 median_proteins = aggregate(Filtered_Combined_Data[,-c(1:10)], by = list(Filtered_Combined_Data[,2]), FUN = median, na.rm = FALSE)
 Normalized_Protein_Data = Filtered_Combined_Data
 Num_Unique_Batches_idc<-which(!duplicated(Filtered_Combined_Data$Batch))
@@ -145,6 +150,59 @@ Normalized_Protein_Data[i:k,-c(1:10)] = Filtered_Combined_Data[i:k,-c(1:10)] - m
 k=k+Num_Unique_TMT_Labels
 }
 rm(i,k)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+boxplot(Protein_Dataset1[,-c(1:11)])
+median_proteins = aggregate(Protein_Dataset1[,-c(1:11)], by = list(Protein_Dataset1[,2]), FUN = median, na.rm = FALSE)
+a<-Protein_Dataset1[,-c(1:11)]-median_proteins[-1]
+boxplot(a)
+
+boxplot(Protein_Dataset2[,-c(1:11)])
+median_proteins = aggregate(Protein_Dataset2[,-c(1:11)], by = list(Protein_Dataset2[,2]), FUN = median, na.rm = FALSE)
+b<-Protein_Dataset2[,-c(1:11)]-median_proteins[-1]
+boxplot(b)
+
+boxplot(Protein_Dataset3[,-c(1:11)])
+median_proteins = aggregate(Protein_Dataset3[,-c(1:11)], by = list(Protein_Dataset3[,2]), FUN = median, na.rm = FALSE)
+c<-Protein_Dataset3[,-c(1:11)]-median_proteins[-1]
+boxplot(c)
+
+boxplot(Protein_Dataset4[,-c(1:11)])
+median_proteins = aggregate(Protein_Dataset4[,-c(1:11)], by = list(Protein_Dataset4[,2]), FUN = median, na.rm = FALSE)
+d<-Protein_Dataset4[,-c(1:11)]-median_proteins[-1]
+boxplot(d)
+
+boxplot(Protein_Dataset5[,-c(1:11)])
+median_proteins = aggregate(Protein_Dataset5[,-c(1:11)], by = list(Protein_Dataset5[,2]), FUN = median, na.rm = FALSE)
+e<-Protein_Dataset5[,-c(1:11)]-median_proteins[-1]
+boxplot(e)
+
+boxplot(Protein_Dataset6[,-c(1:11)])
+median_proteins = aggregate(Protein_Dataset6[,-c(1:11)], by = list(Protein_Dataset6[,2]), FUN = median, na.rm = FALSE)
+f<-Protein_Dataset6[,-c(1:11)]-median_proteins[-1]
+boxplot(f)
+
+factor_info<-bind_rows(Protein_Dataset1[,c(1:11)],Protein_Dataset2[,c(1:11)],Protein_Dataset3[,c(1:11)],Protein_Dataset4[,c(1:11)],Protein_Dataset5[,c(1:11)],Protein_Dataset6[,c(1:11)])
+g<-bind_rows(a,b,c,d,e,f)
+boxplot(t(g),main="Boxplot of Normalized Combined Protein Dataset",xlab="Protein",ylab="Abundance Ratio")
+
+Normalized_Data<-bind_cols(factor_info,g)
+
+i<-bind_rows(Protein_Dataset1,Protein_Dataset2,Protein_Dataset3,Protein_Dataset4,Protein_Dataset5,Protein_Dataset6)
+boxplot(i[,-c(1:11)],main="Boxplot of Non-Normalized Combined Protein Dataset",xlab="Protein",ylab="Abundance Ratio")
+# median_proteins = aggregate(i[,-c(1:11)], by = list(i[,2]), FUN = median, na.rm = FALSE)
+
+
+
+# n1<-i[1:9,-c(1:11)]-median_proteins[-1]
+# n2<-i[10:18,-c(1:11)]-median_proteins[-1]
+# n3<-i[19:27,-c(1:11)]-median_proteins[-1]
+# n4<-i[28:36,-c(1:11)]-median_proteins[-1]
+# n5<-i[37:45,-c(1:11)]-median_proteins[-1]
+# n6<-i[45:53,-c(1:11)]-median_proteins[-1]
+# j<-bind_rows(n1,n2,n3,n4,n5,n6)
+# boxplot(j)
+
 
 graph_path_name<-paste(graph_path,"BoxPlot_function_of_Normalized_Combined_Protein_Dataset.tiff",sep="")
 tiff(file=graph_path_name)
@@ -154,6 +212,8 @@ dev.off()
 
 # Hierarchial Clustering
 tmp = Normalized_Protein_Data
+# tmp = Normalized_Data
+tmp<-NormDataFrame
 tmp2<- tmp[sapply(tmp, function(x) !any(is.na(x)))] 
 #Combining patient id with different groups so that patient id can be seen in dendrogram
 tmp3<-apply(tmp2[,11:ncol(tmp2)],2,as.numeric)
