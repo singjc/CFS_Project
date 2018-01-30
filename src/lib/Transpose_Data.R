@@ -4,10 +4,10 @@ Transpose_Data <-function(Protein_AR_Datasets,Variable_Name){
   for (kk in 1:length(Protein_AR_Datasets)){
     tmp<-get(Protein_AR_Datasets[kk])
     #Obtain Sequence column information
-    Seq_Col<-tmp[,c(1,2)]
+    Seq_Col<-tmp[,c(1,2,3)]
     #Obtain Abundance Ration Sample IDS
-    AR_ID<-colnames(tmp[-c(1,2)])
-    assign((paste("Protein",kk,Variable_Name,sep="")),as.data.frame(t(tmp[,-c(1,2)])))
+    AR_ID<-colnames(tmp[-c(1,2,3)])
+    assign((paste("Protein",kk,Variable_Name,sep="")),as.data.frame(t(tmp[,-c(1,2,3)])))
     tmp2<-get(paste("Protein",kk,Variable_Name,sep=""))
     #Convert dataframe to a matrix, to convert numbers to numeric data
     tmp2_matrix<-as.matrix(tmp2)
@@ -15,7 +15,8 @@ Transpose_Data <-function(Protein_AR_Datasets,Variable_Name){
     tmp2_matrix<-apply(tmp2_matrix,2,as.numeric)
     tmp2<-as.data.frame(tmp2_matrix)
     row.names(tmp2)<-AR_ID
-    colnames(tmp2)<- Seq_Col[,1]
+    # colnames(tmp2)<- Seq_Col[,1] #To go by Unique Sequence ID
+    colnames(tmp2)<- Seq_Col[,2] #To go by Gene Name
     assign((paste("Protein",kk,Variable_Name,sep="")),tmp2,envir=.GlobalEnv)
   } 
   rm(tmp,tmp2,tmp2_matrix,kk)

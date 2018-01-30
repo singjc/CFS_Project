@@ -1,12 +1,4 @@
 
-Protein_Dataset1[,-c(1:11)]
-
-boxplot(t(Protein_Dataset1[,-c(1:11)]),use.cols=TRUE,main="Boxplot of Non-Normalized Protein Dataset1",xlab="Protein",ylab="Abundance Ratio")
-median_proteins = aggregate(Protein_Dataset1[,-c(1:11)], by = list(Protein_Dataset1[,2]), FUN = median, na.rm = FALSE)
-a<-Protein_Dataset1[,-c(1:11)]-median_proteins[-1]
-boxplot(t(a),main="Boxplot of Normalized Protein Dataset1",xlab="Protein",ylab="Abundance Ratio",names=Protein_Dataset6[,2])
-
-
 i<-bind_rows(Protein_Dataset1,Protein_Dataset2,Protein_Dataset3,Protein_Dataset4,Protein_Dataset5,Protein_Dataset6)
 
 boxplot(t(i[,-c(1:11)]),main="Boxplot of Non-Normalized Combined Protein Dataset",xlab="Protein",ylab="Abundance Ratio",names=do.call(paste, c(i[,1:2], sep = "set, ")) ,las=3)

@@ -12,17 +12,14 @@ library(RColorBrewer)
 library(colorspace)
 library(biganalytics)
 
-# source('~/Users/justinsing/Documents/Hannes_Rost/CFS/CFS_Project/src/lib/Patient_Info_Extraction.R ')
-# paste(Protein_AR_Datasets,'/src/lib')
-
 #Gets project path based on location of source script
 project_path <- dirname(dirname(rstudioapi::getSourceEditorContext()$path))
 lib_path<-paste(project_path,'/src/lib',sep="")
 lapply(list.files(pattern = "[.]R$", full.names=TRUE,recursive = FALSE,path=lib_path), source)
 #Gets path to where data is stored
 data_path <- paste(project_path,'/Data/Proteomics_Dataset',sep="")
-#Gets paths of all the Protein data text files
-files <- list.files(data_path, pattern="*Proteins.txt", full.names=T, recursive=FALSE)
+#Gets paths of all the Protein data text files with Gene Names Column
+files <- list.files(data_path, pattern="*Proteins.csv", full.names=T, recursive=FALSE)
 #Initiate path for saving Results/Graphs
 graph_path<-paste(project_path,'/Results/Graphs/',sep="")
 
@@ -39,7 +36,7 @@ i=1
 #Find common proteins between all datasets using semi_join. Semi_join returns values that are matching in the same row for both variables.
 for (kk in length(Protein_AR_Datasets)){
   if (kk==length(Protein_AR_Datasets)){break}
-  tmp <- semi_join(tmp, get(Protein_AR_Datasets[kk+i]), by = 'Unique Sequence ID')
+  tmp <- semi_join(tmp, get(Protein_AR_Datasets[kk+i]), by = 'Unique.Sequence.ID')
 }
 Common_Proteins <- tmp
 rm(tmp,kk,i)
@@ -54,7 +51,7 @@ Filtering_Common_Proteins(Protein_AR_Datasets,Variable_Name="_AR_Common_Filtered
 #Transposing date frames for easier maniputation
 Transpose_Data(Protein_AR_Datasets,Variable_Name="_AR_Transpose")
 
-#Plotting distributions of abundance ratios for each batch
+#Plotting distributions and histograms of abundance ratios for each batch
 Protein_AR_Transpose_Datasets<-ls(all.names=TRUE,pattern="^Protein\\d_AR_Transpose$")
 for (kk in 1:length(Protein_AR_Transpose_Datasets)){
   tmp<-get(paste("Protein",kk,"_AR_Transpose",sep=""))
@@ -110,105 +107,19 @@ List_of_Transposed_Data<-ls(all.names=TRUE,pattern="^Protein\\d_AR_Transpose$")
 List_of_Patient_Info<-ls(all.names=TRUE,pattern="^Patient_Sample_Set\\d$")
 
 # Appending Patient Info to Protein Data
-for (dataset in 1:length(List_of_Transposed_Data)){
-  tmp<-get(List_of_Transposed_Data[dataset])  
-  #Appending Abundance Ratio string in column one, and appending rest of data
-  tmp2<-cbind((row.names(tmp)),tmp,all=TRUE)
-  colnames(tmp2)[1]<-'TMT.Label'
-  #TMT.Label Cleaning up column to to get only the specific TMT label for each sample.
-  tmp2$TMT.Label <- gsub(pattern='^Abundance\\sRatio\\s\\(log2\\)\\:\\s', '', tmp2$TMT.Label)
-  tmp2$TMT.Label <- gsub(pattern='.....126.', '', tmp2$TMT.Label)
-  tmp2$TMT.Label <- gsub(pattern="\\(", '', tmp2$TMT.Label)
-  #Converts values in TMT.Label as factors to ensure merging with patient data works through easily
-  tmp2$TMT.Label<-as.factor(tmp2$TMT.Label)
-  rm(tmp)
-  tmp<-get(List_of_Patient_Info[dataset])
-  #Merging patient information with protein level dataset
-  tmp2 <- merge(tmp, tmp2, by = 'TMT.Label',all=TRUE)
-  #Adding batch number to dataset
-  tmp2 <- cbind(as.data.frame(c(dataset)), tmp2)
-  #Renaming batch number to 'set'
-  colnames(tmp2)[1] = 'Batch'
-  tmp2$Gender<-as.character(tmp2$Gender)
-  assign(paste("Protein_Dataset",dataset,sep = ""),tmp2,envir=.GlobalEnv)
-}
-rm(tmp2)
+Patient_Info_Append(List_of_Transposed_Data,List_of_Patient_Info)
 
 Protein_Datasets<-ls(all.names=TRUE,pattern="^Protein_Dataset\\d$")
-#Combining all datasets to plot overall distribution
-Combined_Data_with_Patient_Info<-bind_rows(lapply(as.list(Protein_Datasets),get))
-Filtered_Combined_Data <- Combined_Data_with_Patient_Info[sapply(Combined_Data_with_Patient_Info, function(x) !any(is.na(x)))] 
+# #Combining all datasets to plot overall distribution
+# Combined_Data_with_Patient_Info<-bind_rows(lapply(as.list(Protein_Datasets),get))
+# Filtered_Combined_Data <- Combined_Data_with_Patient_Info[sapply(Combined_Data_with_Patient_Info, function(x) !any(is.na(x)))] 
 
 # ~~~~~~~~~~~~~~~~~~ Normalising data (median centring)
-median_proteins = aggregate(Filtered_Combined_Data[,-c(1:10)], by = list(Filtered_Combined_Data[,2]), FUN = median, na.rm = FALSE)
-Normalized_Protein_Data = Filtered_Combined_Data
-Num_Unique_Batches_idc<-which(!duplicated(Filtered_Combined_Data$Batch))
-Num_Unique_TMT_Labels<-length(unique(Filtered_Combined_Data$TMT.Label))
-k<-Num_Unique_TMT_Labels
-for (i in Num_Unique_Batches_idc){
-Normalized_Protein_Data[i:k,-c(1:10)] = Filtered_Combined_Data[i:k,-c(1:10)] - median_proteins[,-1]
-k=k+Num_Unique_TMT_Labels
-}
-rm(i,k)
+Data_Normalization(Protein_Datasets,graph_path,plot=F)
+FileName<-paste(project_path,'/Results/OutputFiles/','Normalized_Protein_Dataset_1_to_6.csv',sep="")
+write.csv(NormDataFrame,file=FileName)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-boxplot(Protein_Dataset1[,-c(1:11)])
-median_proteins = aggregate(Protein_Dataset1[,-c(1:11)], by = list(Protein_Dataset1[,2]), FUN = median, na.rm = FALSE)
-a<-Protein_Dataset1[,-c(1:11)]-median_proteins[-1]
-boxplot(a)
-
-boxplot(Protein_Dataset2[,-c(1:11)])
-median_proteins = aggregate(Protein_Dataset2[,-c(1:11)], by = list(Protein_Dataset2[,2]), FUN = median, na.rm = FALSE)
-b<-Protein_Dataset2[,-c(1:11)]-median_proteins[-1]
-boxplot(b)
-
-boxplot(Protein_Dataset3[,-c(1:11)])
-median_proteins = aggregate(Protein_Dataset3[,-c(1:11)], by = list(Protein_Dataset3[,2]), FUN = median, na.rm = FALSE)
-c<-Protein_Dataset3[,-c(1:11)]-median_proteins[-1]
-boxplot(c)
-
-boxplot(Protein_Dataset4[,-c(1:11)])
-median_proteins = aggregate(Protein_Dataset4[,-c(1:11)], by = list(Protein_Dataset4[,2]), FUN = median, na.rm = FALSE)
-d<-Protein_Dataset4[,-c(1:11)]-median_proteins[-1]
-boxplot(d)
-
-boxplot(Protein_Dataset5[,-c(1:11)])
-median_proteins = aggregate(Protein_Dataset5[,-c(1:11)], by = list(Protein_Dataset5[,2]), FUN = median, na.rm = FALSE)
-e<-Protein_Dataset5[,-c(1:11)]-median_proteins[-1]
-boxplot(e)
-
-boxplot(Protein_Dataset6[,-c(1:11)])
-median_proteins = aggregate(Protein_Dataset6[,-c(1:11)], by = list(Protein_Dataset6[,2]), FUN = median, na.rm = FALSE)
-f<-Protein_Dataset6[,-c(1:11)]-median_proteins[-1]
-boxplot(f)
-
-factor_info<-bind_rows(Protein_Dataset1[,c(1:11)],Protein_Dataset2[,c(1:11)],Protein_Dataset3[,c(1:11)],Protein_Dataset4[,c(1:11)],Protein_Dataset5[,c(1:11)],Protein_Dataset6[,c(1:11)])
-g<-bind_rows(a,b,c,d,e,f)
-boxplot(t(g),main="Boxplot of Normalized Combined Protein Dataset",xlab="Protein",ylab="Abundance Ratio")
-
-Normalized_Data<-bind_cols(factor_info,g)
-
-i<-bind_rows(Protein_Dataset1,Protein_Dataset2,Protein_Dataset3,Protein_Dataset4,Protein_Dataset5,Protein_Dataset6)
-boxplot(i[,-c(1:11)],main="Boxplot of Non-Normalized Combined Protein Dataset",xlab="Protein",ylab="Abundance Ratio")
-# median_proteins = aggregate(i[,-c(1:11)], by = list(i[,2]), FUN = median, na.rm = FALSE)
-
-
-
-# n1<-i[1:9,-c(1:11)]-median_proteins[-1]
-# n2<-i[10:18,-c(1:11)]-median_proteins[-1]
-# n3<-i[19:27,-c(1:11)]-median_proteins[-1]
-# n4<-i[28:36,-c(1:11)]-median_proteins[-1]
-# n5<-i[37:45,-c(1:11)]-median_proteins[-1]
-# n6<-i[45:53,-c(1:11)]-median_proteins[-1]
-# j<-bind_rows(n1,n2,n3,n4,n5,n6)
-# boxplot(j)
-
-
-graph_path_name<-paste(graph_path,"BoxPlot_function_of_Normalized_Combined_Protein_Dataset.tiff",sep="")
-tiff(file=graph_path_name)
-x<-Normalized_Protein_Data[,-c(1:10)]
-z<-boxplot(x,main="Boxplot of Normalized Combined Protein Dataset using boxplot func",xlab="Protein",ylab="Normalized Abundance Ratio")
-dev.off()
 
 # Hierarchial Clustering
 tmp = Normalized_Protein_Data
