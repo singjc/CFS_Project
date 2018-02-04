@@ -4,7 +4,7 @@ Protein_Dataset_Info_Extraction <- function(files) {
   for (file in files ){
     #Extract only useful and relevant data from protein data file
     # assign(paste("Protein",i,sep=""),(read.table(file))[,-c(1,2,8:49, 89:94)],envir=.GlobalEnv) # With old protein file with no gene name column
-    assign(paste("Protein",i,sep=""),(read.csv(file, header=TRUE, sep=","))[,-c(1,2,9:50, 90:95)],envir=.GlobalEnv)
+    assign(paste("Protein",i,sep=""),(read.csv(file, header=TRUE, sep=","))[,-c(1,2,4,7,9:50, 90:95)],envir=.GlobalEnv)
     #Store current protein data into a static temporary variable
     tmp <- get(paste("Protein",i,sep=""))
     #Rename column headers baser on names in the first row
@@ -13,7 +13,7 @@ Protein_Dataset_Info_Extraction <- function(files) {
     # assign((paste("Protein",i,sep="")),tmp)
     #Extract only Abundance Ratios
     # assign(paste("Protein",i,"_AR",sep=""),get(paste("Protein",i,sep=""))[c(1,5,16:24)]) #For original file
-    assign(paste("Protein",i,"_AR",sep=""),get(paste("Protein",i,sep=""))[c(1,3,6,17:25)])
+    assign(paste("Protein",i,"_AR",sep=""),get(paste("Protein",i,sep=""))[c(1,2,4,15:23)])
     #Store current protein dataset into a static temporary variable
     tmp <- get(paste("Protein",i,"_AR",sep=""))
     #Convert Unique Sequence ID to character vectors
