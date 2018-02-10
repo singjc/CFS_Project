@@ -363,7 +363,7 @@ for (i in 1:nrow(data)){
 }
 Missing_Data_Fill<-as.matrix(data)
 Clustering_Replacing_NaN_With_rnorm_mean_SD(Missing_Data_Fill,graph_path)
-Clustering_ComBat(Missing_Data_Fill,graph_path)  
+ComBat_Results<-Clustering_ComBat(Missing_Data_Fill,graph_path,Norm_Meta_Data,NormDataFrame)  
 
 
 
@@ -377,7 +377,7 @@ Norm_Meta_Data <- as.matrix(NormDataFrame[,c(1:12)])
 
 # ---- PCA ----
 library(sinkr)
-library(pca3d)
+# library(pca3d)
 library(factoextra)
 library(FactoMineR)
 # library(doParallel)
@@ -390,12 +390,13 @@ NormData[is.na(Norm_Data_Matrix)] <- 0
 
 test<-dineof(t(Norm_Data_Matrix))
 tmp<-as.data.frame(test$Xa)
-colnames(tmp)<-paste(t((Norm_Meta_Data))["Sample.ID",],t((Norm_Meta_Data))["Batch",],t((Norm_Meta_Data))["Gender",],sep=' | ')
+colnames(tmp)<-paste(t((Norm_Meta_Data))["Sample.ID",],t((Norm_Meta_Data))["Batch",],t((Norm_Meta_Data))["Family",],sep=' | ')
 # tmp<-NormData
 # rownames(tmp)<-NormDataFrame$Set_TMT_Label
 
+colnames(ComBat_Results)<-paste(t((Norm_Meta_Data))["Sample.ID",],t((Norm_Meta_Data))["Batch",],t((Norm_Meta_Data))["Family_group",],sep=' | ')
 
-pca_CFS<-prcomp(tmp)
+pca_CFS<-prcomp(as.data.frame(ComBat_Results))
 
 # biplot(pca_CFS,main="PCA biplot of CFS sample proteins")
 
@@ -407,13 +408,15 @@ fviz_pca_ind(pca_CFS,
              col.ind = "cos2", # Color by the quality of representation
               gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
               repel = TRUE,     # Avoid text overlapping
-              select.ind = list(cos2 = 0.99),
+              select.ind = list(cos2 = 0.40),
              title="PCA of independants when cos2 >= 0.99"
 
 )
 
+
+
 fviz_pca_var(pca_CFS,
-             col.var = "contrib", # Color by contributions to the PC
+             col.var = "cos2", # Color by contributions to the PC
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
              repel = TRUE,     # Avoid text overlapping
              geom = c("text","point"),
@@ -458,9 +461,9 @@ res_pca<-PCA(t(tmp))
 
 
 # ---- Univariate Modeling ----
-Protein_fill<-dineof(Norm_Data_Matrix)
-Protein_Dataframe<-cbind(Norm_Meta_Data,as.data.frame(Protein_fill$Xa))
-Uni_Model_Results<-Univariate_Linear_Model(Protein_Dataframe)
+# Protein_fill<-dineof(Norm_Data_Matrix)
+# Protein_Dataframe<-cbind(Norm_Meta_Data,as.data.frame(Protein_fill$Xa))
+Uni_Model_Results<-Univariate_Linear_Model(NormDataFrame)
 Adjusted_PVals<-FDR_Adjusted_PVal(Uni_Model_Results)
 Adjusted_PVals = cbind(as.data.frame(colnames(Protein_Dataframe)[-c(1:12)]), Adjusted_PVals)
 colnames(Adjusted_PVals)[1] = 'Gene_Name'

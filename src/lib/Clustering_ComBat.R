@@ -1,7 +1,12 @@
-Clustering_ComBat <- function(Missing_Data_Fill,graph_path){
+Clustering_ComBat <- function(Missing_Data_Fill,graph_path,Norm_Meta_Data,NormDataFrame){
   library(sva)
   
-  combat_Data<-ComBat(Missing_Data_Fill,batch=Norm_Meta_Data[,2])
+  
+  ptype<-as.data.frame(Norm_Meta_Data[,-c(1)])
+  row.names(ptype)<-paste('V',row.names(ptype),sep='')
+  
+  modcombat = model.matrix(~1, data=ptype)
+  combat_Data<-ComBat(Missing_Data_Fill,batch=ptype$Batch,mod=modcombat, par.prior=FALSE, prior.plots=TRUE)
   
   Dist_Matrix<-dist(t(combat_Data),method="euclidean")
   
@@ -86,4 +91,6 @@ Clustering_ComBat <- function(Missing_Data_Fill,graph_path){
                               lab.col=rainbow_hcl(8)[as.fumeric(as.character(Norm_Meta_Data[1:nrow(Norm_Meta_Data),"TMT.Label"]))], 
                               main="Dendrogram of Total Sample Clustering, color by TMT Label")
   dev.off()
+  
+  return(combat_Data)
 }
