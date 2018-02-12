@@ -3,7 +3,7 @@ list.of.packages <- c("rstudioapi", "dplyr","VennDiagram","colorspace","ggplot2"
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 
-
+# ---- Library's to load ----
 library(rstudioapi)
 library(dplyr)
 library(VennDiagram)
@@ -16,13 +16,17 @@ library(venn)
 library(rafalib)
 library(RColorBrewer)
 library(biganalytics)
-# library(pca3d)
-
-
 # library(devtools)
 # install_github("marchtaylor/sinkr")
 library(sinkr)
 
+# library(pca3d)
+library(factoextra)
+library(FactoMineR)
+# library(doParallel)
+library(RColorBrewer)
+
+# ---- Project Initializing Variables ----
 #Gets project path based on location of source script
 project_path <- dirname(dirname(rstudioapi::getSourceEditorContext()$path))
 lib_path<-paste(project_path,'/src/lib',sep="")
@@ -128,17 +132,17 @@ Protein_Datasets<-ls(all.names=TRUE,pattern="^Protein_Dataset\\d$")
 
 # ---- Normalising data (median centring) ----
 Data_Normalization(Protein_Datasets,graph_path,plot=F)
-FileName<-paste(project_path,'/Results/OutputFiles/','NormDataFrameset_1_to_6.csv',sep="")
-write.csv(NormDataFrame,file=FileName)
+# FileName<-paste(project_path,'/Results/OutputFiles/','NormDataFrameset_1_to_6.csv',sep="")
+# write.csv(NormDataFrame,file=FileName)
 
 
-Combined_Protein_Transpose <- NormDataFrame[,-c(1:12)]
-#Plotting distribution of abundance ratios for combined data
-Melt_Protein_Transpose <- melt(Combined_Protein_Transpose)
-graph_path_name<-paste(graph_path,"Normalized_Normal_Distribution_Plot_of_Combined_Protein_Dataset",".jpeg",sep="")
-graph_name = paste("Normal Distribution Plot of Combined Protein Dataset",sep="")
-Proteins_NormPlot <- ggplot(data = Melt_Protein_Transpose, aes(x=value, col=variable)) + geom_density(na.rm=TRUE)  + theme(legend.position = "none")+ggtitle(graph_name)
-ggsave(graph_path_name,device="jpeg")
+# Combined_Protein_Transpose <- NormDataFrame[,-c(1:12)]
+# #Plotting distribution of abundance ratios for combined data
+# Melt_Protein_Transpose <- melt(Combined_Protein_Transpose)
+# graph_path_name<-paste(graph_path,"Normalized_Normal_Distribution_Plot_of_Combined_Protein_Dataset",".jpeg",sep="")
+# graph_name = paste("Normal Distribution Plot of Combined Protein Dataset",sep="")
+# Proteins_NormPlot <- ggplot(data = Melt_Protein_Transpose, aes(x=value, col=variable)) + geom_density(na.rm=TRUE)  + theme(legend.position = "none")+ggtitle(graph_name)
+# ggsave(graph_path_name,device="jpeg")
 
 
 # ---- Hierarchial Clustering ----
@@ -362,8 +366,8 @@ for (i in 1:nrow(data)){
   
 }
 Missing_Data_Fill<-as.matrix(data)
-Clustering_Replacing_NaN_With_rnorm_mean_SD(Missing_Data_Fill,graph_path)
-ComBat_Results<-Clustering_ComBat(Missing_Data_Fill,graph_path,Norm_Meta_Data,NormDataFrame)  
+Clustering_Replacing_NaN_With_rnorm_mean_SD(Missing_Data_Fill,(paste(graph_path,"Dendrograms/rnorm_Clustering/",sep="")),Plot=T)
+ComBat_Results<-Clustering_ComBat(Missing_Data_Fill,(paste(graph_path,"Dendrograms/ComBat_Clustering/",sep="")),Norm_Meta_Data,NormDataFrame,Plot=T)  
 
 
 
@@ -375,18 +379,10 @@ ComBat_Results<-Clustering_ComBat(Missing_Data_Fill,graph_path,Norm_Meta_Data,No
 Norm_Data_Matrix <- as.matrix(NormDataFrame[,-c(1:12)])
 Norm_Meta_Data <- as.matrix(NormDataFrame[,c(1:12)])
 
-# ---- PCA ----
-library(sinkr)
-# library(pca3d)
-library(factoextra)
-library(FactoMineR)
-# library(doParallel)
-
+# ---- PCA-DINEOF ----
 # NormData<-NormDataFrame[,13:ncol(NormDataFrame)]
 NormData<-(Norm_Data_Matrix)
 NormData[is.na(Norm_Data_Matrix)] <- 0
-
-
 
 test<-dineof(t(Norm_Data_Matrix))
 tmp<-as.data.frame(test$Xa)
@@ -394,26 +390,7 @@ colnames(tmp)<-paste(t((Norm_Meta_Data))["Sample.ID",],t((Norm_Meta_Data))["Batc
 # tmp<-NormData
 # rownames(tmp)<-NormDataFrame$Set_TMT_Label
 
-colnames(ComBat_Results)<-paste(t((Norm_Meta_Data))["Sample.ID",],t((Norm_Meta_Data))["Batch",],t((Norm_Meta_Data))["Family_group",],sep=' | ')
-
-pca_CFS<-prcomp(as.data.frame(ComBat_Results))
-
-# biplot(pca_CFS,main="PCA biplot of CFS sample proteins")
-
-# pca3d(pca_CFS,legend=T)
-
-
-fviz_eig(pca_CFS)
-fviz_pca_ind(pca_CFS,
-             col.ind = "cos2", # Color by the quality of representation
-              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-              repel = TRUE,     # Avoid text overlapping
-              select.ind = list(cos2 = 0.40),
-             title="PCA of independants when cos2 >= 0.99"
-
-)
-
-
+pca_CFS<-prcomp(tmp)
 
 fviz_pca_var(pca_CFS,
              col.var = "cos2", # Color by contributions to the PC
@@ -424,39 +401,29 @@ fviz_pca_var(pca_CFS,
              
 )
 
-fviz_pca_biplot(pca_CFS, repel = TRUE,
-                col.var = "#2E9FDF", # Variables color
-                col.ind = "#696969",  # Individuals color
-                gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-                # repel = TRUE,     # Avoid text overlapping
-                select.ind = list(cos2 = 0.99),
-                geom.var = c("text","point"),
-                geom.ind = c("text","point"),
-                title="PCA of biplot when cos2 >= 0.99"
-                
-)
+# ---- PCA rnorm Imputation ----
+PCA_Analysis(Missing_Data_Fill,Norm_Meta_Data,Experiment="rnorm_Imputation",(paste(graph_path,"PCA/rnorm_Imputation/",sep="")))
+Image_Converter((paste(graph_path,"PCA/rnorm_Imputation/",sep="")))
+# ---- PCA rnorm-ComBat Imputation ----
+PCA_Analysis(ComBat_Results,Norm_Meta_Data,Experiment="rnorm_ComBat_Imputation",(paste(graph_path,"PCA/rnorm_ComBat_Imputation/",sep="")))
+Image_Converter((paste(graph_path,"PCA/rnorm_ComBat_Imputation/",sep="")))  
 
-# tmp1<-NormDataFrame[,1]
-# tmp<-(Norm_Data_Matrix)
-# tmp<-dineof(tmp)
-# rownames(tmp$Xa)<-tmp1
-# tmp<-as.data.frame(tmp$Xa)
 
-cor.mat <- round(cor(tmp),2)
-# install.packages("corrplot")
-library("corrplot")
-{plot.new(); 
-corrplot(cor.mat, type="upper", 
-         tl.col="black", tl.srt=45,tl.cex=0.5,
-         title="Correlations plot of each sample in order of hclust",
-         outline=T,order="hclust")
-dev.off()}
+# cor.mat <- round(cor(tmp),2)
+# # install.packages("corrplot")
+# library("corrplot")
+# {plot.new(); 
+# corrplot(cor.mat, type="upper", 
+#          tl.col="black", tl.srt=45,tl.cex=0.5,
+#          title="Correlations plot of each sample in order of hclust",
+#          outline=T,order="hclust")
+# dev.off()}
+# 
+# # install.packages("PerformanceAnalytics")
+# library("PerformanceAnalytics")
+# chart.Correlation(tmp, histogram=TRUE, pch=19)
+# 
 
-# install.packages("PerformanceAnalytics")
-library("PerformanceAnalytics")
-chart.Correlation(tmp, histogram=TRUE, pch=19)
-
-res_pca<-PCA(t(tmp))
 
 
 
@@ -470,8 +437,47 @@ colnames(Adjusted_PVals)[1] = 'Gene_Name'
 P_Value_Thresholding(Adjusted_PVals)
 NormDataFrame[,c(1:12)]
 
+# ---- Multivariate Modeling ----
+Protein_Dataframe<-cbind(as.data.frame(Norm_Meta_Data),as.data.frame(t(Missing_Data_Fill)))
+rownames(Protein_Dataframe)<-c()
 
-  
-fit<-lm(formula = y ~ Batch+Family_group+disease.status+Gender+Age,data = NormDataFrame)
+Multivariate_Results<-Multivariate_Linear_Model(Protein_Dataframe)
+Multivariate_Adjusted_PVals<-FDR_Adjusted_PVal(Multivariate_Results)
+Multivariate_Adjusted_PVals = cbind(as.data.frame(colnames(Protein_Dataframe)[-c(1:12)]), Multivariate_Adjusted_PVals)
+colnames(Multivariate_Adjusted_PVals)[1] = 'Gene_Name'
+P_Value_Thresholding(Multivariate_Adjusted_PVals)
 
+Batch4_PVal_Sig
+
+# ---- Anova ----
+
+Proteins_mlm1 = list()
+for(i in names(Protein_Dataframe)[-c(1:12)]){
+  Proteins_mlm1[[i]] <- lm(get(i) ~ CFS + Age_group + Family_group + Gender + Batch, Protein_Dataframe, na.action=na.exclude)
+}
+CFS_manova = data.frame()
+for (i in 1:length(Proteins_mlm1)) {
+  CFS_manova[i,1] = anova(Proteins_mlm1[[i]])$Pr[1]
+}
+
+for (i in 1:length(Proteins_mlm1)) {
+  CFS_manova[i,2] = anova(Proteins_mlm1[[i]])$Pr[2]
+}
+
+for (i in 1:length(Proteins_mlm1)) {
+  CFS_manova[i,3] = anova(Proteins_mlm1[[i]])$Pr[3]
+}
+
+for (i in 1:length(Proteins_mlm1)) {
+  CFS_manova[i,4] = anova(Proteins_mlm1[[i]])$Pr[4]
+}
+
+for (i in 1:length(Proteins_mlm1)) {
+  CFS_manova[i,5] = anova(Proteins_mlm1[[i]])$Pr[5]
+}
+colnames(CFS_manova) = c('CFS', 'Age_group', 'Family_group', 'Gender', 'Batch')
+
+#Plotting anova p-values
+CFS_anova_melt = melt(CFS_manova)
+CFS_anova_plot = ggplot(CFS_anova_melt, aes(x = variable, y = -log2(value), col = variable)) + geom_boxplot() + geom_hline(yintercept = -log2(0.05))
 

@@ -1,4 +1,4 @@
-FDR_Adjusted_PVal <- function(Results,variables) {
+FDR_Adjusted_PVal <- function(Results) {
   # x$BH_Y = 
   #   p.adjust(Results$yes_raw.p, 
   #            method = "BH")
