@@ -368,7 +368,7 @@ for (i in 1:nrow(data)){
 }
 Missing_Data_Fill<-as.matrix(data)
 
-Clustering_Replacing_NaN_With_rnorm_mean_SD(Missing_Data_Fill,(paste(graph_path,"Dendrograms/rnorm_Clustering/",fig_name="rnorm_imputation",sep="")),Plot=T)
+Clustering_Replacing_NaN_With_rnorm_mean_SD(Missing_Data_Fill,(paste(graph_path,"Dendrograms/rnorm_Clustering/",sep="")),Plot=T)
 ComBat_Results<-Clustering_ComBat(Missing_Data_Fill,(paste(graph_path,"Dendrograms/ComBat_Clustering/",sep="")),Norm_Meta_Data,NormDataFrame,Plot=T)  
 data<-t(Norm_Data_Matrix)
 ComBat_Only_Results<-Clustering_ComBat(data,(paste(graph_path,"Dendrograms/ComBat_Only_Clustering/",sep="")),Norm_Meta_Data,NormDataFrame,Plot=T)  
@@ -390,23 +390,30 @@ library(HarmanData)
 # and removed are not completely confounded.
 # 
 # rdocumentation: https://www.rdocumentation.org/packages/Harman/versions/1.0.2
+data(msms.dataset)
+msms.dataset
+msms_pp <- pp.msms.data(msms.dataset)
+expt <- pData(msms_pp)$treat
+batch <- pData(msms_pp)$batch
+table(expt, batch)
+log_ms_exprs <- log(exprs(msms_pp) + 1, 2)
+hm <- harman(log_ms_exprs, expt=expt, batch=batch)
+Norm_Meta_Data[,2]<-as.factor(Norm_Meta_Data[,2])
+Norm_Meta_Data[,3]<-as.factor(Norm_Meta_Data[,3])
+Norm_Meta_Data[,4]<-as.factor(Norm_Meta_Data[,4])
+Norm_Meta_Data[,5]<-as.factor(Norm_Meta_Data[,5])
+Norm_Meta_Data[,6]<-as.factor(Norm_Meta_Data[,6])
+Norm_Meta_Data[,7]<-as.factor(Norm_Meta_Data[,7])
+Norm_Meta_Data[,8]<-as.factor(Norm_Meta_Data[,8])
+Norm_Meta_Data[,9]<-as.factor(Norm_Meta_Data[,9])
+Norm_Meta_Data[,10]<-as.factor(Norm_Meta_Data[,10])
+Norm_Meta_Data[,11]<-as.factor(Norm_Meta_Data[,11])
+Norm_Meta_Data[,12]<-as.factor(Norm_Meta_Data[,12])
+
+hm <- harman(data=Missing_Data_Fill, expt=Norm_Meta_Data[,"CFS"], batch=Norm_Meta_Data[,"Batch"])
 
 
-# Preprocess to remove rows which are all 0 and replace NA values with 0.
-msms_pp <- pp.msms.data(t(Norm_Data_Matrix))
 
-
-
-colnames(Missing_Data_Fill)<-paste(NormDataFrame[,"Batch"],NormDataFrame[,"Sample.ID"],NormDataFrame[,"Family_group"],NormDataFrame[,"CFS"],sep="|")
-hm <- harman(datamatrix = Missing_Data_Fill, expt=NormDataFrame[,"Family_group"], batch=NormDataFrame[,"Batch"],limit=0.90,printInfo=FALSE)
-
-plot(hm)
-
-corrected_hm <- reconstructData(hm)
-
-Clustering_Replacing_NaN_With_rnorm_mean_SD(corrected_hm,(paste(graph_path,"Dendrograms/Harman_Clustering/",sep="")),fig_name="Harman_Clustering",Plot=T)
-
-PCA_Analysis(corrected_hm,Norm_Meta_Data,Experiment="Harman_Batch_Removal",(paste(graph_path,"PCA/Harman_Batch_Removal/",sep="")))
 
 
 

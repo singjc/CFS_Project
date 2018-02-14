@@ -1,5 +1,5 @@
 Clustering_Replacing_NaN_With_rnorm_mean_SD <-function(data,graph_path,fig_name,Plot){
-  
+  ifelse(!dir.exists(file.path(graph_path), dir.create(file.path(graph_path))), FALSE)
   
   Dist_Matrix<-dist(t(data),method="euclidean")
   
