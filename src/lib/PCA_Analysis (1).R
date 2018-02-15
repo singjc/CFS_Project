@@ -1,7 +1,5 @@
 PCA_Analysis <-function(Data,Norm_Meta_Data,Experiment,graph_path) {
   
-  ifelse(!dir.exists(file.path(graph_path, paste(Experiment,"/",sep=""))), dir.create(file.path(graph_path, paste(Experiment,"/",sep=""))), FALSE)
-  
   col_names<-colnames(Norm_Meta_Data[,-c(1,2)])
   # color = grDevices::colors()[grep('gr(a|e)y', grDevices::colors(), invert = T)]
   qual_col_pals = brewer.pal.info[brewer.pal.info$category == 'qual',]
