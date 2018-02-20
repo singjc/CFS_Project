@@ -2,7 +2,7 @@ Multivariate_Linear_Model <- function(Protein_Dataframe) {
   # Protein_Dataframe<-NormDataFrame
   # Protein_Dataframe<-Missing_Data_Fill
   tmp = list()
-  for(i in names(Protein_Dataframe)[-c(1:12)]){
+  for(i in names(Protein_Dataframe)[-c(1:8)]){
     print(i)
     tmp[[i]] <- lm(Protein_Dataframe[,i] ~  CFS + Age_group + Family_group + Gender + Batch
                    , data=Protein_Dataframe, na.action=na.exclude)

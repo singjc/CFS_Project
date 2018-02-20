@@ -27,8 +27,8 @@ library(RColorBrewer)
 # source("https://bioconductor.org/biocLite.R")
 # biocLite("Harman")
 library(Harman)
-library(HarmanData)
-
+# library(HarmanData)
+library(missMDA)
 
 # ---- Project Initializing Variables ----
 #Gets project path based on location of source script
@@ -331,7 +331,7 @@ dev.off()
 
 
 
-# Hierarchial Clustering with Removal of more than 60% missing values -------------------
+# Hierarchial Clustering with Removal of more than 60% missing values and rnorn Imputation -------------------
 
 # Method two
 # graph_path<-paste(graph_path,'Dendrograms/',sep='')
@@ -368,12 +368,12 @@ for (i in 1:nrow(data)){
 }
 Missing_Data_Fill<-as.matrix(data)
 
-Clustering_Replacing_NaN_With_rnorm_mean_SD(Missing_Data_Fill,(paste(graph_path,"Dendrograms/rnorm_Clustering/",sep="")),Plot=T)
+Clustering_Replacing_NaN_With_rnorm_mean_SD(Missing_Data_Fill,(paste(graph_path,"Dendrograms/rnorm_Clustering/",fig_name="rnorm_imputation",sep="")),Plot=T)
 ComBat_Results<-Clustering_ComBat(Missing_Data_Fill,(paste(graph_path,"Dendrograms/ComBat_Clustering/",sep="")),Norm_Meta_Data,NormDataFrame,Plot=T)  
 data<-t(Norm_Data_Matrix)
-ComBat_Only_Results<-Clustering_ComBat(data,(paste(graph_path,"Dendrograms/ComBat_Only_Clustering/",sep="")),Norm_Meta_Data,NormDataFrame,Plot=T)  
+ComBat_Only_Results<-Clustering_ComBat(data=data,dir=(paste(graph_path,"Dendrograms/ComBat_Only_Clustering/",sep="")),Norm_Meta_Data,NormDataFrame,Plot=T)  
 
-
+# ---- Harman Batch Removal ----
 library(Harman)
 library(msmsEDA)
 library(HarmanData)
@@ -390,30 +390,79 @@ library(HarmanData)
 # and removed are not completely confounded.
 # 
 # rdocumentation: https://www.rdocumentation.org/packages/Harman/versions/1.0.2
-data(msms.dataset)
-msms.dataset
-msms_pp <- pp.msms.data(msms.dataset)
-expt <- pData(msms_pp)$treat
-batch <- pData(msms_pp)$batch
-table(expt, batch)
-log_ms_exprs <- log(exprs(msms_pp) + 1, 2)
-hm <- harman(log_ms_exprs, expt=expt, batch=batch)
-Norm_Meta_Data[,2]<-as.factor(Norm_Meta_Data[,2])
-Norm_Meta_Data[,3]<-as.factor(Norm_Meta_Data[,3])
-Norm_Meta_Data[,4]<-as.factor(Norm_Meta_Data[,4])
-Norm_Meta_Data[,5]<-as.factor(Norm_Meta_Data[,5])
-Norm_Meta_Data[,6]<-as.factor(Norm_Meta_Data[,6])
-Norm_Meta_Data[,7]<-as.factor(Norm_Meta_Data[,7])
-Norm_Meta_Data[,8]<-as.factor(Norm_Meta_Data[,8])
-Norm_Meta_Data[,9]<-as.factor(Norm_Meta_Data[,9])
-Norm_Meta_Data[,10]<-as.factor(Norm_Meta_Data[,10])
-Norm_Meta_Data[,11]<-as.factor(Norm_Meta_Data[,11])
-Norm_Meta_Data[,12]<-as.factor(Norm_Meta_Data[,12])
 
-hm <- harman(data=Missing_Data_Fill, expt=Norm_Meta_Data[,"CFS"], batch=Norm_Meta_Data[,"Batch"])
+
+# Preprocess to remove rows which are all 0 and replace NA values with 0.
+msms_pp <- pp.msms.data(t(Norm_Data_Matrix))
 
 
 
+colnames(Missing_Data_Fill)<-paste(NormDataFrame[,"Batch"],NormDataFrame[,"Sample.ID"],NormDataFrame[,"Family_group"],NormDataFrame[,"CFS"],sep="|")
+hm <- harman(datamatrix = Missing_Data_Fill, expt=NormDataFrame[,"Family_group"], batch=NormDataFrame[,"Batch"],limit=0.99,printInfo=FALSE)
+
+plot(hm)
+
+corrected_hm <- reconstructData(hm)
+
+Clustering_Replacing_NaN_With_rnorm_mean_SD(corrected_hm,(paste(graph_path,"Dendrograms/Harman_Clustering/",sep="")),fig_name="Harman_Clustering_0.99",Plot=T)
+Image_Converter((paste(graph_path,"Dendrograms/Harman_Clustering/",sep="")))  
+
+PCA_Analysis(corrected_hm,Norm_Meta_Data,Experiment="Harman_Batch_Removal_0.99",(paste(graph_path,"PCA/Harman_Batch_Removal/",sep="")),Norm_Meta_Data,NormDataFrame)
+Image_Converter((paste(graph_path,"PCA/Harman_Batch_Removal/",sep="")))  
+
+
+
+# Hierarchial Clustering with Removal of more than 60% missing values -------------------
+
+# Method two
+# graph_path<-paste(graph_path,'Dendrograms/',sep='')
+Norm_Data_Matrix <- (as.matrix(NormDataFrame[,-c(1:12)]))
+Norm_Meta_Data <- (as.matrix(NormDataFrame[,c(1:12)]))
+
+#  Removing Missing Data that have more than 60% missing values per protein
+data<-t(Norm_Data_Matrix)
+Total_Col<-ncol(data)
+remove_Rows=matrix()
+k=1
+for (i in 1:nrow(data)){
+  sum_na<-sum(is.na(data[i,]))
+  if ((sum_na/Total_Col)>=0.6){
+    print(i)
+    remove_Rows[k]<-i
+    k=k+1
+  }
+  
+}
+data<-data[-remove_Rows,]
+data[is.na(data)] <- 0
+
+Clustering_Replacing_NaN_With_rnorm_mean_SD(data,dir=paste(graph_path,"Dendrograms/60_Cutoff_Clustering/",sep=""),fig_name="60_Cutt_off_zero_imputation",Plot=T)
+PCA_Analysis(Data=data,Norm_Meta_Data,Experiment="60_Cutt_off_zero_imputation",dir=(paste(graph_path,"PCA/60_Cutt_off_zero_imputation/",sep="")))
+
+zero_imputation_ComBat_Results<-Clustering_ComBat(data=data,dir=(paste(graph_path,"Dendrograms/Zero_Imputation_ComBat_Clustering/",sep="")),Norm_Meta_Data,NormDataFrame,Fig_Name="Zero_Imputation_ComBat_Clustering",Plot=T)
+PCA_Analysis(Data=zero_imputation_ComBat_Results,Norm_Meta_Data,Experiment="zero_ComBat_imputation",dir=(paste(graph_path,"PCA/zero_imputation_ComBat/",sep="")))
+
+colnames(data)<-paste(NormDataFrame[,"Batch"],NormDataFrame[,"Sample.ID"],NormDataFrame[,"Family_group"],NormDataFrame[,"CFS"],sep="|")
+hm <- harman(datamatrix = data, expt=NormDataFrame[,"Family_group"], batch=NormDataFrame[,"Batch"],limit=1,printInfo=FALSE)
+
+plot(hm)
+
+corrected_hm <- reconstructData(hm)
+
+Clustering_Replacing_NaN_With_rnorm_mean_SD(corrected_hm,dir=(paste(graph_path,"Dendrograms/Zero_Imputation_Harman_Clustering/",sep="")),fig_name="Zero_Imputation_Harman_Clustering_1",Plot=T)
+Image_Converter((paste(graph_path,"Dendrograms/Zero_Imputation_Harman_Clustering/",sep="")))  
+
+PCA_Analysis(corrected_hm,Norm_Meta_Data,Experiment="Zero_Imputation_Harman_Batch_Removal_1",(paste(graph_path,"PCA/Zero_Imputation_Harman_Batch_Removal/",sep="")))
+Image_Converter((paste(graph_path,"PCA/Zero_Imputation_Harman_Batch_Removal/",sep="")))  
+
+
+nb = estim_ncpPCA(data,ncp.max=10)
+res.comp = imputePCA(data,ncp=nb$ncp)
+res.pca = PCA(res.comp$completeObs)
+
+Clustering_Replacing_NaN_With_rnorm_mean_SD(res.comp$completeObs,dir=(paste(graph_path,"Dendrograms/missMDA_Clustering/",sep="")),fig_name="missMDA_Clustering_",Plot=T)
+
+PCA_Analysis(res.comp$completeObs,Norm_Meta_Data,Experiment="missMDA",(paste(graph_path,"PCA/missMDA/",sep="")))
 
 
 
@@ -491,6 +540,8 @@ colnames(Multivariate_Adjusted_PVals)[1] = 'Gene_Name'
 P_Value_Thresholding(Multivariate_Adjusted_PVals)
 
 Batch4_PVal_Sig
+Batch5_PVal_Sig
+Batch6_PVal_Sig
 
 # ---- Anova ----
 
@@ -524,3 +575,80 @@ colnames(CFS_manova) = c('CFS', 'Age_group', 'Family_group', 'Gender', 'Batch')
 CFS_anova_melt = melt(CFS_manova)
 CFS_anova_plot = ggplot(CFS_anova_melt, aes(x = variable, y = -log2(value), col = variable)) + geom_boxplot() + geom_hline(yintercept = -log2(0.05))
 
+# ---- Anova ----
+data<-t(Norm_Data_Matrix)
+Total_Col<-ncol(data)
+remove_Rows=matrix()
+k=1
+for (i in 1:nrow(data)){
+  sum_na<-sum(is.na(data[i,]))
+  if ((sum_na/Total_Col)>=0.6){
+    # print(i)
+    remove_Rows[k]<-i
+    k=k+1
+  }
+  
+}
+data<-data[-remove_Rows,]
+
+
+
+Protein_Dataframe<-as.data.frame(cbind(Norm_Meta_Data[,-c(1,3,5,7)],t(data)))
+# mlm_Results<-Multivariate_Linear_Model(Protein_Dataframe)
+
+Protein_Dataframe[,1]<-as.factor(Protein_Dataframe[,1])
+Protein_Dataframe[,2]<-as.factor(Protein_Dataframe[,2])
+Protein_Dataframe[,3]<-as.factor(Protein_Dataframe[,3])
+Protein_Dataframe[,4]<-as.factor(Protein_Dataframe[,4])
+Protein_Dataframe[,5]<-as.factor(Protein_Dataframe[,5])
+Protein_Dataframe[,6]<-as.factor(Protein_Dataframe[,6])
+Protein_Dataframe[,7]<-as.factor(Protein_Dataframe[,7])
+Protein_Dataframe[,8]<-as.factor(Protein_Dataframe[,8])
+Protein_Dataframe[,-c(1:8)]<-as.numeric(Protein_Dataframe[,-c(1:8)])
+
+Protein_Dataframe[,-c(1:8)]<-lapply(Protein_Dataframe[,-c(1:8)],as.numeric)
+
+# Protein_Dataframe[,9]<-as.factor(Protein_Dataframe[,9])
+# Protein_Dataframe[,10]<-as.factor(Protein_Dataframe[,10])
+# Protein_Dataframe[,11]<-as.factor(Protein_Dataframe[,11])
+Proteins_mlm1 = list()
+for(i in names(Protein_Dataframe)[-c(1:8)]){
+  print(i)
+  Proteins_mlm1[[i]] <- lm(get(i) ~ CFS + Age_group + Family_group + Gender + Batch, Protein_Dataframe, na.action=na.exclude)
+}
+
+tmp2=data.frame()
+for (i in 1:length(Proteins_mlm1)){
+  factor_levels<-rownames(summary(Proteins_mlm1[[i]])$coefficients)
+  for (k in 1:length(factor_levels)){
+    tmp2[i,k]<-summary(Proteins_mlm1[[i]])$coefficients[k,4]
+  }
+}
+colnames(tmp2)<-c(paste(factor_levels,"Raw_P-Value",sep="_"))
+
+CFS_manova = data.frame()
+for (i in 1:length(Proteins_mlm1)) {
+  CFS_manova[i,1] = anova(Proteins_mlm1[[i]])$Pr[1]
+}
+
+for (i in 1:length(Proteins_mlm1)) {
+  CFS_manova[i,2] = anova(Proteins_mlm1[[i]])$Pr[2]
+}
+
+for (i in 1:length(Proteins_mlm1)) {
+  CFS_manova[i,3] = anova(Proteins_mlm1[[i]])$Pr[3]
+}
+
+for (i in 1:length(Proteins_mlm1)) {
+  CFS_manova[i,4] = anova(Proteins_mlm1[[i]])$Pr[4]
+}
+
+for (i in 1:length(Proteins_mlm1)) {
+  CFS_manova[i,5] = anova(Proteins_mlm1[[i]])$Pr[5]
+}
+colnames(CFS_manova) = c('CFS', 'Age_group', 'Family_group', 'Gender', 'Batch')
+
+#Plotting anova p-values
+CFS_anova_melt = melt(CFS_manova)
+CFS_anova_plot = ggplot(CFS_anova_melt, aes(x = variable, y = -log2(value), col = variable)) + geom_boxplot() + geom_hline(yintercept = -log2(0.05))
+plot(CFS_anova_plot)
