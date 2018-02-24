@@ -461,8 +461,10 @@ res.comp = imputePCA(data,ncp=nb$ncp)
 res.pca = PCA(res.comp$completeObs)
 
 Clustering_Replacing_NaN_With_rnorm_mean_SD(res.comp$completeObs,dir=(paste(graph_path,"Dendrograms/missMDA_Clustering/",sep="")),fig_name="missMDA_Clustering_",Plot=T)
+missMDA_ComBat_Results<-Clustering_ComBat(res.comp$completeObs,dir=(paste(graph_path,"Dendrograms/missMDA_ComBat_Clustering/",sep="")),Norm_Meta_Data,NormDataFrame,Fig_Name="missMDA_ComBat_Clustering_",Plot=F)
 
 PCA_Analysis(res.comp$completeObs,Norm_Meta_Data,Experiment="missMDA",(paste(graph_path,"PCA/missMDA/",sep="")))
+PCA_Analysis(missMDA_ComBat_Results,Norm_Meta_Data,Experiment="missMDA_ComBat",(paste(graph_path,"PCA/missMDA_ComBat/",sep="")))
 
 
 
@@ -604,7 +606,6 @@ Protein_Dataframe[,5]<-as.factor(Protein_Dataframe[,5])
 Protein_Dataframe[,6]<-as.factor(Protein_Dataframe[,6])
 Protein_Dataframe[,7]<-as.factor(Protein_Dataframe[,7])
 Protein_Dataframe[,8]<-as.factor(Protein_Dataframe[,8])
-Protein_Dataframe[,-c(1:8)]<-as.numeric(Protein_Dataframe[,-c(1:8)])
 
 Protein_Dataframe[,-c(1:8)]<-lapply(Protein_Dataframe[,-c(1:8)],as.numeric)
 
@@ -617,14 +618,39 @@ for(i in names(Protein_Dataframe)[-c(1:8)]){
   Proteins_mlm1[[i]] <- lm(get(i) ~ CFS + Age_group + Family_group + Gender + Batch, Protein_Dataframe, na.action=na.exclude)
 }
 
-tmp2=data.frame()
+
+
+
+tmp2=matrix("NA",nrow=5606,ncol=25)
+
+# tmp2=data.frame()
+colnames(tmp2)<-c("(Intercept)_Raw_P-Value","CFSRecoverd_Raw_P-Value","CFSUnknown_Raw_P-Value","CFSYes_Raw_P-Value",
+           "Age_group10-20_Raw_P-Value","Age_group20-30_Raw_P-Value","Age_group30-40_Raw_P-Value","Age_group40-50_Raw_P-Value",
+           "Age_group50-60_Raw_P-Value","Age_group60-70_Raw_P-Value","Age_group70+_Raw_P-Value",
+           "Family_groupFam2_Raw_P-Value","Family_groupFam3_Raw_P-Value","Family_groupFam4_Raw_P-Value","Family_groupFam5_Raw_P-Value",
+           "Family_groupFam6_Raw_P-Value","Family_groupFam7_Raw_P-Value","Family_groupSCase_Raw_P-Value","Family_groupSCtl_Raw_P-Value",
+           "GenderM_Raw_P-Value","Batch2_Raw_P-Value","Batch3_Raw_P-Value","Batch4_Raw_P-Value","Batch5_Raw_P-Value",
+           "Batch6_Raw_P-Value")
+
 for (i in 1:length(Proteins_mlm1)){
   factor_levels<-rownames(summary(Proteins_mlm1[[i]])$coefficients)
-  for (k in 1:length(factor_levels)){
-    tmp2[i,k]<-summary(Proteins_mlm1[[i]])$coefficients[k,4]
+  for (c in 1:ncol(tmp2)){
+    for (k in 1:length(factor_levels)){
+      if (paste(factor_levels[k],"Raw_P-Value",sep="_")==colnames(tmp2)[c]){
+        # print(c("i:",i, "c:", colnames(tmp2)[c], "k:",paste(factor_levels[k],"Raw_P-Value",sep="_")))
+        tmp2[i,c]<-summary(Proteins_mlm1[[i]])$coefficients[k,4]
+        
+      }
+    }
   }
 }
-colnames(tmp2)<-c(paste(factor_levels,"Raw_P-Value",sep="_"))
+rownames(tmp2)<-names(Proteins_mlm1)
+P_Value_Protein_mlm_Results<-tmp2
+rownames(P_Value_Protein_mlm_Results)<-rownames(tmp2)
+FDR_Adjusted_PVal_Results<-FDR_Adjusted_PVal(P_Value_Protein_mlm_Results)
+rownames(FDR_Adjusted_PVal_Results)<-rownames(P_Value_Protein_mlm_Results)
+
+
 
 CFS_manova = data.frame()
 for (i in 1:length(Proteins_mlm1)) {
