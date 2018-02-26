@@ -577,7 +577,7 @@ colnames(CFS_manova) = c('CFS', 'Age_group', 'Family_group', 'Gender', 'Batch')
 CFS_anova_melt = melt(CFS_manova)
 CFS_anova_plot = ggplot(CFS_anova_melt, aes(x = variable, y = -log2(value), col = variable)) + geom_boxplot() + geom_hline(yintercept = -log2(0.05))
 
-# ---- Anova ----
+# ---- Multivariate Modeling with 60% of NaN removed proteins ----
 data<-t(Norm_Data_Matrix)
 Total_Col<-ncol(data)
 remove_Rows=matrix()
@@ -591,13 +591,9 @@ for (i in 1:nrow(data)){
   }
   
 }
-data<-data[-remove_Rows,]
-
-
+data<-data[-remove_Rows,] #Data with proteins that have more than 60% values missing removed.
 
 Protein_Dataframe<-as.data.frame(cbind(Norm_Meta_Data[,-c(1,3,5,7)],t(data)))
-# mlm_Results<-Multivariate_Linear_Model(Protein_Dataframe)
-
 Protein_Dataframe[,1]<-as.factor(Protein_Dataframe[,1])
 Protein_Dataframe[,2]<-as.factor(Protein_Dataframe[,2])
 Protein_Dataframe[,3]<-as.factor(Protein_Dataframe[,3])
@@ -617,13 +613,11 @@ for(i in names(Protein_Dataframe)[-c(1:8)]){
   print(i)
   Proteins_mlm1[[i]] <- lm(get(i) ~ CFS + Age_group + Family_group + Gender + Batch, Protein_Dataframe, na.action=na.exclude)
 }
-
-
-
-
+# for (i in 1:length(Proteins_mlm1)){
+#   plot(Proteins_mlm1[[i]])
+# }
+#Getting P-Values
 tmp2=matrix("NA",nrow=5606,ncol=25)
-
-# tmp2=data.frame()
 colnames(tmp2)<-c("(Intercept)_Raw_P-Value","CFSRecoverd_Raw_P-Value","CFSUnknown_Raw_P-Value","CFSYes_Raw_P-Value",
            "Age_group10-20_Raw_P-Value","Age_group20-30_Raw_P-Value","Age_group30-40_Raw_P-Value","Age_group40-50_Raw_P-Value",
            "Age_group50-60_Raw_P-Value","Age_group60-70_Raw_P-Value","Age_group70+_Raw_P-Value",
@@ -631,7 +625,6 @@ colnames(tmp2)<-c("(Intercept)_Raw_P-Value","CFSRecoverd_Raw_P-Value","CFSUnknow
            "Family_groupFam6_Raw_P-Value","Family_groupFam7_Raw_P-Value","Family_groupSCase_Raw_P-Value","Family_groupSCtl_Raw_P-Value",
            "GenderM_Raw_P-Value","Batch2_Raw_P-Value","Batch3_Raw_P-Value","Batch4_Raw_P-Value","Batch5_Raw_P-Value",
            "Batch6_Raw_P-Value")
-
 for (i in 1:length(Proteins_mlm1)){
   factor_levels<-rownames(summary(Proteins_mlm1[[i]])$coefficients)
   for (c in 1:ncol(tmp2)){
@@ -645,11 +638,309 @@ for (i in 1:length(Proteins_mlm1)){
   }
 }
 rownames(tmp2)<-names(Proteins_mlm1)
-P_Value_Protein_mlm_Results<-tmp2
-rownames(P_Value_Protein_mlm_Results)<-rownames(tmp2)
-FDR_Adjusted_PVal_Results<-FDR_Adjusted_PVal(P_Value_Protein_mlm_Results)
-rownames(FDR_Adjusted_PVal_Results)<-rownames(P_Value_Protein_mlm_Results)
+P_Value_Protein_mlm1_Results<-tmp2
+rownames(P_Value_Protein_mlm1_Results)<-rownames(tmp2)
+FDR_Adjusted_PVal1_Results<-FDR_Adjusted_PVal(P_Value_Protein_mlm1_Results)
+rownames(FDR_Adjusted_PVal1_Results)<-rownames(P_Value_Protein_mlm1_Results)
+FDR_Adjusted_PVal1_Results[FDR_Adjusted_PVal1_Results>0.05]<-NA
+rownames(FDR_Adjusted_PVal1_Results)<-rownames(P_Value_Protein_mlm1_Results)
+write.csv(file="/Users/justinsing/Google Drive/Hannes Roest Lab/CFS/CFS_Project/Results/P-Values_CFS_Age_group_Family_group_Gender_Batch.csv", x=FDR_Adjusted_PVal1_Results)
 
+
+#Getting Estimates
+tmp2=matrix("NA",nrow=5606,ncol=25)
+colnames(tmp2)<-c("(Intercept)_Raw_Estimate","CFSRecoverd_Raw_Estimate","CFSUnknown_Raw_Estimate","CFSYes_Raw_Estimate",
+                  "Age_group10-20_Raw_Estimate","Age_group20-30_Raw_Estimate","Age_group30-40_Raw_Estimate","Age_group40-50_Raw_Estimate",
+                  "Age_group50-60_Raw_Estimate","Age_group60-70_Raw_Estimate","Age_group70+_Raw_Estimate",
+                  "Family_groupFam2_Raw_Estimate","Family_groupFam3_Raw_Estimate","Family_groupFam4_Raw_Estimate","Family_groupFam5_Raw_Estimate",
+                  "Family_groupFam6_Raw_Estimate","Family_groupFam7_Raw_Estimate","Family_groupSCase_Raw_Estimate","Family_groupSCtl_Raw_Estimate",
+                  "GenderM_Raw_Estimate","Batch2_Raw_Estimate","Batch3_Raw_Estimate","Batch4_Raw_Estimate","Batch5_Raw_Estimate",
+                  "Batch6_Raw_Estimate")
+for (i in 1:length(Proteins_mlm1)){
+  factor_levels<-rownames(summary(Proteins_mlm1[[i]])$coefficients)
+  for (c in 1:ncol(tmp2)){
+    for (k in 1:length(factor_levels)){
+      if (paste(factor_levels[k],"Raw_Estimate",sep="_")==colnames(tmp2)[c]){
+        # print(c("i:",i, "c:", colnames(tmp2)[c], "k:",paste(factor_levels[k],"Raw_Estimate",sep="_")))
+        tmp2[i,c]<-summary(Proteins_mlm1[[i]])$coefficients[k,1]
+        
+      }
+    }
+  }
+}
+rownames(tmp2)<-names(Proteins_mlm1)
+Estimate_Protein_mlm1_Results<-tmp2
+rownames(Estimate_Protein_mlm1_Results)<-rownames(tmp2)
+Estimate_Protein_mlm1_Results[is.na(FDR_Adjusted_PVal1_Results)]<-NA
+# FDR_Adjusted_Estimate_Results<-FDR_Adjusted_PVal(Estimate_Protein_mlm_Results)
+# rownames(FDR_Adjusted_Estimate_Results)<-rownames(Estimate_Protein_mlm_Results)
+
+write.csv(file="/Users/justinsing/Google Drive/Hannes Roest Lab/CFS/CFS_Project/Results/Estimates_CFS_Age_group_Family_group_Gender_Batch.csv", x=Estimate_Protein_mlm1_Results)
+
+
+#linear Model 2
+Proteins_mlm2 = list()
+for(i in names(Protein_Dataframe)[-c(1:8)]){
+  # print(i)
+  Proteins_mlm2[[i]] <- lm(get(i) ~ CFS + Batch, Protein_Dataframe, na.action=na.exclude)
+}
+# for (i in 1:length(Proteins_mlm2)){
+#   plot(Proteins_mlm2[[i]])
+# }
+#Getting P-Values
+tmp2=matrix("NA",nrow=5606,ncol=9)
+colnames(tmp2)<-c("(Intercept)_Raw_P-Value","CFSRecoverd_Raw_P-Value","CFSUnknown_Raw_P-Value","CFSYes_Raw_P-Value",
+                 "Batch2_Raw_P-Value","Batch3_Raw_P-Value","Batch4_Raw_P-Value","Batch5_Raw_P-Value",
+                  "Batch6_Raw_P-Value")
+for (i in 1:length(Proteins_mlm2)){
+  factor_levels<-rownames(summary(Proteins_mlm2[[i]])$coefficients)
+  for (c in 1:ncol(tmp2)){
+    for (k in 1:length(factor_levels)){
+      if (paste(factor_levels[k],"Raw_P-Value",sep="_")==colnames(tmp2)[c]){
+        # print(c("i:",i, "c:", colnames(tmp2)[c], "k:",paste(factor_levels[k],"Raw_P-Value",sep="_")))
+        tmp2[i,c]<-summary(Proteins_mlm2[[i]])$coefficients[k,4]
+        
+      }
+    }
+  }
+}
+rownames(tmp2)<-names(Proteins_mlm2)
+P_Value_Protein_mlm2_Results<-tmp2
+rownames(P_Value_Protein_mlm2_Results)<-rownames(tmp2)
+FDR_Adjusted_PVal2_Results<-FDR_Adjusted_PVal(P_Value_Protein_mlm2_Results)
+rownames(FDR_Adjusted_PVal2_Results)<-rownames(P_Value_Protein_mlm2_Results)
+FDR_Adjusted_PVal2_Results[FDR_Adjusted_PVal2_Results>0.05]<-NA
+write.csv(file="/Users/justinsing/Google Drive/Hannes Roest Lab/CFS/CFS_Project/Results/P-Values_CFS_Batch.csv", x=FDR_Adjusted_PVal2_Results)
+
+
+#Getting Estimates
+tmp2=matrix("NA",nrow=5606,ncol=9)
+colnames(tmp2)<-c("(Intercept)_Raw_Estimate","CFSRecoverd_Raw_Estimate","CFSUnknown_Raw_Estimate","CFSYes_Raw_Estimate",
+                 "Batch2_Raw_Estimate","Batch3_Raw_Estimate","Batch4_Raw_Estimate","Batch5_Raw_Estimate",
+                  "Batch6_Raw_Estimate")
+
+for (i in 1:length(Proteins_mlm2)){
+  factor_levels<-rownames(summary(Proteins_mlm2[[i]])$coefficients)
+  for (c in 1:ncol(tmp2)){
+    for (k in 1:length(factor_levels)){
+      if (paste(factor_levels[k],"Raw_Estimate",sep="_")==colnames(tmp2)[c]){
+        # print(c("i:",i, "c:", colnames(tmp2)[c], "k:",paste(factor_levels[k],"Raw_Estimate",sep="_")))
+        tmp2[i,c]<-summary(Proteins_mlm2[[i]])$coefficients[k,1]
+        
+      }
+    }
+  }
+}
+rownames(tmp2)<-names(Proteins_mlm2)
+Estimate_Protein_mlm2_Results<-tmp2
+rownames(Estimate_Protein_mlm2_Results)<-rownames(tmp2)
+Estimate_Protein_mlm2_Results[is.na(FDR_Adjusted_PVal2_Results)]<-NA
+# FDR_Adjusted_Estimate_Results<-FDR_Adjusted_PVal(Estimate_Protein_mlm_Results)
+# rownames(FDR_Adjusted_Estimate_Results)<-rownames(Estimate_Protein_mlm_Results)
+
+write.csv(file="/Users/justinsing/Google Drive/Hannes Roest Lab/CFS/CFS_Project/Results/Estimates_CFS_Batch.csv", x=Estimate_Protein_mlm2_Results)
+
+#linear Model 3
+Proteins_mlm3 = list()
+for(i in names(Protein_Dataframe)[-c(1:8)]){
+  # print(i)
+  Proteins_mlm3[[i]] <- lm(get(i) ~ CFS +Family_group+ Batch, Protein_Dataframe, na.action=na.exclude)
+}
+# for (i in 1:length(Proteins_mlm3)){
+#   plot(Proteins_mlm3[[i]])
+# }
+#Getting P-Values
+tmp2=matrix("NA",nrow=5606,ncol=17)
+colnames(tmp2)<-c("(Intercept)_Raw_P-Value","CFSRecoverd_Raw_P-Value","CFSUnknown_Raw_P-Value","CFSYes_Raw_P-Value",
+                  "Family_groupFam2_Raw_P-Value","Family_groupFam3_Raw_P-Value","Family_groupFam4_Raw_P-Value","Family_groupFam5_Raw_P-Value",
+                  "Family_groupFam6_Raw_P-Value","Family_groupFam7_Raw_P-Value","Family_groupSCase_Raw_P-Value","Family_groupSCtl_Raw_P-Value",
+                  "Batch2_Raw_P-Value","Batch3_Raw_P-Value","Batch4_Raw_P-Value","Batch5_Raw_P-Value",
+                  "Batch6_Raw_P-Value")
+
+for (i in 1:length(Proteins_mlm3)){
+  factor_levels<-rownames(summary(Proteins_mlm3[[i]])$coefficients)
+  for (c in 1:ncol(tmp2)){
+    for (k in 1:length(factor_levels)){
+      if (paste(factor_levels[k],"Raw_P-Value",sep="_")==colnames(tmp2)[c]){
+        # print(c("i:",i, "c:", colnames(tmp2)[c], "k:",paste(factor_levels[k],"Raw_P-Value",sep="_")))
+        tmp2[i,c]<-summary(Proteins_mlm3[[i]])$coefficients[k,4]
+        
+      }
+    }
+  }
+}
+rownames(tmp2)<-names(Proteins_mlm3)
+P_Value_Protein_mlm3_Results<-tmp2
+rownames(P_Value_Protein_mlm3_Results)<-rownames(tmp2)
+FDR_Adjusted_PVal3_Results<-FDR_Adjusted_PVal(P_Value_Protein_mlm3_Results)
+rownames(FDR_Adjusted_PVal3_Results)<-rownames(P_Value_Protein_mlm3_Results)
+FDR_Adjusted_PVal3_Results[FDR_Adjusted_PVal3_Results>0.05]<-NA
+write.csv(file="/Users/justinsing/Google Drive/Hannes Roest Lab/CFS/CFS_Project/Results/P-Values_CFS_Family_group_Batch.csv", x=FDR_Adjusted_PVal3_Results)
+
+
+#Getting Estimates
+tmp2=matrix("NA",nrow=5606,ncol=17)
+colnames(tmp2)<-c("(Intercept)_Raw_Estimate","CFSRecoverd_Raw_Estimate","CFSUnknown_Raw_Estimate","CFSYes_Raw_Estimate",
+                  "Family_groupFam2_Raw_Estimate","Family_groupFam3_Raw_Estimate","Family_groupFam4_Raw_Estimate","Family_groupFam5_Raw_Estimate",
+                  "Family_groupFam6_Raw_Estimate","Family_groupFam7_Raw_Estimate","Family_groupSCase_Raw_Estimate","Family_groupSCtl_Raw_Estimate",
+                  "Batch2_Raw_Estimate","Batch3_Raw_Estimate","Batch4_Raw_Estimate","Batch5_Raw_Estimate",
+                  "Batch6_Raw_Estimate")
+for (i in 1:length(Proteins_mlm3)){
+  factor_levels<-rownames(summary(Proteins_mlm3[[i]])$coefficients)
+  for (c in 1:ncol(tmp2)){
+    for (k in 1:length(factor_levels)){
+      if (paste(factor_levels[k],"Raw_Estimate",sep="_")==colnames(tmp2)[c]){
+        # print(c("i:",i, "c:", colnames(tmp2)[c], "k:",paste(factor_levels[k],"Raw_Estimate",sep="_")))
+        tmp2[i,c]<-summary(Proteins_mlm3[[i]])$coefficients[k,1]
+        
+      }
+    }
+  }
+}
+rownames(tmp2)<-names(Proteins_mlm3)
+Estimate_Protein_mlm3_Results<-tmp2
+rownames(Estimate_Protein_mlm3_Results)<-rownames(tmp2)
+
+Estimate_Protein_mlm3_Results[is.na(FDR_Adjusted_PVal3_Results)]<-NA
+# FDR_Adjusted_Estimate_Results<-FDR_Adjusted_PVal(Estimate_Protein_mlm_Results)
+# rownames(FDR_Adjusted_Estimate_Results)<-rownames(Estimate_Protein_mlm_Results)
+
+write.csv(file="/Users/justinsing/Google Drive/Hannes Roest Lab/CFS/CFS_Project/Results/Estimates_CFS_Family_group_Batch.csv", x=Estimate_Protein_mlm3_Results)
+
+#linear Model 4
+Proteins_mlm4 = list()
+for(i in names(Protein_Dataframe)[-c(1:8)]){
+  # print(i)
+  Proteins_mlm4[[i]] <- lm(get(i) ~ CFS +Age_group+ Batch, Protein_Dataframe, na.action=na.exclude)
+}
+# for (i in 1:length(Proteins_mlm4)){
+#   plot(Proteins_mlm4[[i]])
+# }
+#Getting P-Values
+tmp2=matrix("NA",nrow=5606,ncol=16)
+colnames(tmp2)<-c("(Intercept)_Raw_P-Value","CFSRecoverd_Raw_P-Value","CFSUnknown_Raw_P-Value","CFSYes_Raw_P-Value",
+                  "Age_group10-20_Raw_P-Value","Age_group20-30_Raw_P-Value","Age_group30-40_Raw_P-Value","Age_group40-50_Raw_P-Value",
+                  "Age_group50-60_Raw_P-Value","Age_group60-70_Raw_P-Value","Age_group70+_Raw_P-Value",
+                  "Batch2_Raw_P-Value","Batch3_Raw_P-Value","Batch4_Raw_P-Value","Batch5_Raw_P-Value",
+                  "Batch6_Raw_P-Value")
+
+for (i in 1:length(Proteins_mlm4)){
+  factor_levels<-rownames(summary(Proteins_mlm4[[i]])$coefficients)
+  for (c in 1:ncol(tmp2)){
+    for (k in 1:length(factor_levels)){
+      if (paste(factor_levels[k],"Raw_P-Value",sep="_")==colnames(tmp2)[c]){
+        # print(c("i:",i, "c:", colnames(tmp2)[c], "k:",paste(factor_levels[k],"Raw_P-Value",sep="_")))
+        tmp2[i,c]<-summary(Proteins_mlm4[[i]])$coefficients[k,4]
+        
+      }
+    }
+  }
+}
+rownames(tmp2)<-names(Proteins_mlm4)
+P_Value_Protein_mlm4_Results<-tmp2
+rownames(P_Value_Protein_mlm4_Results)<-rownames(tmp2)
+FDR_Adjusted_PVal4_Results<-FDR_Adjusted_PVal(P_Value_Protein_mlm4_Results)
+rownames(FDR_Adjusted_PVal4_Results)<-rownames(P_Value_Protein_mlm4_Results)
+FDR_Adjusted_PVal4_Results[FDR_Adjusted_PVal4_Results>0.05]<-NA
+write.csv(file="/Users/justinsing/Google Drive/Hannes Roest Lab/CFS/CFS_Project/Results/P-Values_CFS_Age_group_Batch.csv", x=FDR_Adjusted_PVal4_Results)
+
+
+#Getting Estimates
+tmp2=matrix("NA",nrow=5606,ncol=16)
+colnames(tmp2)<-c("(Intercept)_Raw_Estimate","CFSRecoverd_Raw_Estimate","CFSUnknown_Raw_Estimate","CFSYes_Raw_Estimate",
+                  "Age_group10-20_Raw_Estimate","Age_group20-30_Raw_Estimate","Age_group30-40_Raw_Estimate","Age_group40-50_Raw_Estimate",
+                  "Age_group50-60_Raw_Estimate","Age_group60-70_Raw_Estimate","Age_group70+_Raw_Estimate",
+                  "Batch2_Raw_Estimate","Batch3_Raw_Estimate","Batch4_Raw_Estimate","Batch5_Raw_Estimate",
+                  "Batch6_Raw_Estimate")
+for (i in 1:length(Proteins_mlm4)){
+  factor_levels<-rownames(summary(Proteins_mlm4[[i]])$coefficients)
+  for (c in 1:ncol(tmp2)){
+    for (k in 1:length(factor_levels)){
+      if (paste(factor_levels[k],"Raw_Estimate",sep="_")==colnames(tmp2)[c]){
+        # print(c("i:",i, "c:", colnames(tmp2)[c], "k:",paste(factor_levels[k],"Raw_Estimate",sep="_")))
+        tmp2[i,c]<-summary(Proteins_mlm4[[i]])$coefficients[k,1]
+        
+      }
+    }
+  }
+}
+rownames(tmp2)<-names(Proteins_mlm4)
+Estimate_Protein_mlm4_Results<-tmp2
+rownames(Estimate_Protein_mlm4_Results)<-rownames(tmp2)
+
+Estimate_Protein_mlm4_Results[is.na(FDR_Adjusted_PVal4_Results)]<-NA
+# FDR_Adjusted_Estimate_Results<-FDR_Adjusted_PVal(Estimate_Protein_mlm_Results)
+# rownames(FDR_Adjusted_Estimate_Results)<-rownames(Estimate_Protein_mlm_Results)
+
+write.csv(file="/Users/justinsing/Google Drive/Hannes Roest Lab/CFS/CFS_Project/Results/Estimates_CFS_Age_group_Batch.csv", x=Estimate_Protein_mlm4_Results)
+
+#Linear Model 5
+Proteins_mlm5 = list()
+for(i in names(Protein_Dataframe)[-c(1:8)]){
+  # print(i)
+  Proteins_mlm5[[i]] <- lm(get(i) ~ CFS +Gender+ Batch, Protein_Dataframe, na.action=na.exclude)
+}
+# for (i in 1:length(Proteins_mlm5)){
+#   plot(Proteins_mlm5[[i]])
+# }
+#Getting P-Values
+tmp2=matrix("NA",nrow=5606,ncol=10)
+colnames(tmp2)<-c("(Intercept)_Raw_P-Value","CFSRecoverd_Raw_P-Value","CFSUnknown_Raw_P-Value","CFSYes_Raw_P-Value",
+                  "GenderM_Raw_P-Value",
+                  "Batch2_Raw_P-Value","Batch3_Raw_P-Value","Batch4_Raw_P-Value","Batch5_Raw_P-Value",
+                  "Batch6_Raw_P-Value")
+
+for (i in 1:length(Proteins_mlm5)){
+  factor_levels<-rownames(summary(Proteins_mlm5[[i]])$coefficients)
+  for (c in 1:ncol(tmp2)){
+    for (k in 1:length(factor_levels)){
+      if (paste(factor_levels[k],"Raw_P-Value",sep="_")==colnames(tmp2)[c]){
+        # print(c("i:",i, "c:", colnames(tmp2)[c], "k:",paste(factor_levels[k],"Raw_P-Value",sep="_")))
+        tmp2[i,c]<-summary(Proteins_mlm5[[i]])$coefficients[k,4]
+        
+      }
+    }
+  }
+}
+rownames(tmp2)<-names(Proteins_mlm5)
+P_Value_Protein_mlm5_Results<-tmp2
+rownames(P_Value_Protein_mlm5_Results)<-rownames(tmp2)
+FDR_Adjusted_PVal5_Results<-FDR_Adjusted_PVal(P_Value_Protein_mlm5_Results)
+rownames(FDR_Adjusted_PVal5_Results)<-rownames(P_Value_Protein_mlm5_Results)
+FDR_Adjusted_PVal5_Results[FDR_Adjusted_PVal5_Results>0.05]<-NA
+write.csv(file="/Users/justinsing/Google Drive/Hannes Roest Lab/CFS/CFS_Project/Results/P-Values_CFS_Gender_Batch.csv", x=FDR_Adjusted_PVal5_Results)
+
+
+#Getting Estimates
+tmp2=matrix("NA",nrow=5606,ncol=10)
+colnames(tmp2)<-c("(Intercept)_Raw_Estimate","CFSRecoverd_Raw_Estimate","CFSUnknown_Raw_Estimate","CFSYes_Raw_Estimate",
+                  "GenderM_Raw_Estimate",
+                  "Batch2_Raw_Estimate","Batch3_Raw_Estimate","Batch4_Raw_Estimate","Batch5_Raw_Estimate",
+                  "Batch6_Raw_Estimate")
+for (i in 1:length(Proteins_mlm5)){
+  factor_levels<-rownames(summary(Proteins_mlm5[[i]])$coefficients)
+  for (c in 1:ncol(tmp2)){
+    for (k in 1:length(factor_levels)){
+      if (paste(factor_levels[k],"Raw_Estimate",sep="_")==colnames(tmp2)[c]){
+        # print(c("i:",i, "c:", colnames(tmp2)[c], "k:",paste(factor_levels[k],"Raw_Estimate",sep="_")))
+        tmp2[i,c]<-summary(Proteins_mlm5[[i]])$coefficients[k,1]
+        
+      }
+    }
+  }
+}
+rownames(tmp2)<-names(Proteins_mlm5)
+Estimate_Protein_mlm5_Results<-tmp2
+rownames(Estimate_Protein_mlm5_Results)<-rownames(tmp2)
+
+Estimate_Protein_mlm5_Results[is.na(FDR_Adjusted_PVal5_Results)]<-NA
+# FDR_Adjusted_Estimate_Results<-FDR_Adjusted_PVal(Estimate_Protein_mlm_Results)
+# rownames(FDR_Adjusted_Estimate_Results)<-rownames(Estimate_Protein_mlm_Results)
+
+write.csv(file="/Users/justinsing/Google Drive/Hannes Roest Lab/CFS/CFS_Project/Results/Estimates_CFS_Gender_Batch.csv", x=Estimate_Protein_mlm5_Results)
+
+
+anov<-anova(Proteins_mlm1[["GSTO1"]],Proteins_mlm2[["GSTO1"]],Proteins_mlm3[["GSTO1"]],Proteins_mlm4[["GSTO1"]],Proteins_mlm5[["GSTO1"]])
 
 
 CFS_manova = data.frame()
