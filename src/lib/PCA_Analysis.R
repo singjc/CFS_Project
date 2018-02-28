@@ -1,6 +1,6 @@
 PCA_Analysis <-function(Data,Norm_Meta_Data,Experiment,dir) {
   
-  if (dir.exists(file.path(dir, paste(Experiment,"/",sep="")))==TRUE){print(paste("Saving to Directory: ",dir,sep=" "))}else{print(paste("Creating Directory: ",dir,sep=" ")); dir.create(file.path(dir))}
+ if (dir.exists(file.path(dir, paste(Experiment,"/",sep="")))==TRUE){print(paste("Saving to Directory: ",dir,sep=" "))}else{print(paste("Creating Directory: ",dir,sep=" ")); dir.create(file.path(dir))}
   
   
   col_names<-colnames(Norm_Meta_Data[,-c(1,2)])
@@ -30,13 +30,13 @@ PCA_Analysis <-function(Data,Norm_Meta_Data,Experiment,dir) {
                  repel = TRUE,     # Avoid text overlapping
                  geom = c("text","point"),
                  title=paste("PCA of Variables with Sample ID|Batch and ",var_name,sep="")
-                 
+                
                  
     ) +  theme_gray(base_size=14)
     # dev.off()
     ggsave(dir_name,device='tiff',
            width = 17, height = 10, dpi = 350, units = "in",limitsize = FALSE)
-    
+
   }
   
 }
